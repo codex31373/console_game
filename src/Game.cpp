@@ -69,7 +69,7 @@ bool Game::initialize() {
             m_physicsWorld->getWorld(),
             100.0f + i * 120.0f, 100.0f,
             40.0f, 40.0f,
-            Color{255, 100 + i * 30, 100, 255} // Different colored boxes
+            Color{255, static_cast<Uint8>(100 + i * 30), 100, 255} // Different colored boxes
         );
         box->getBody()->SetType(b2_dynamicBody);
         m_gameObjects.push_back(std::move(box));
@@ -135,9 +135,9 @@ bool Game::handleInput(const SDL_Event& event) {
                     // Add a new dynamic object when space is pressed
                     auto newBox = std::make_unique<GameObject>(
                         m_physicsWorld->getWorld(),
-                        rand() % SCREEN_WIDTH, 50.0f,
+                        static_cast<float>(rand() % SCREEN_WIDTH), 50.0f,
                         30.0f, 30.0f,
-                        Color{rand() % 255, rand() % 255, rand() % 255, 255}
+                        Color{static_cast<Uint8>(rand() % 255), static_cast<Uint8>(rand() % 255), static_cast<Uint8>(rand() % 255), 255}
                     );
                     newBox->getBody()->SetType(b2_dynamicBody);
                     m_gameObjects.push_back(std::move(newBox));

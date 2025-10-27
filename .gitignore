@@ -1,0 +1,129 @@
+# Build directories and files
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# C++ compiler outputs
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.slo
+*.lo
+*.la
+*.cmake
+
+# Precompiled headers
+*.pch
+*.gch
+
+# Dependency directories (if any are downloaded)
+deps/
+dependencies/
+third_party/
+external/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.cache
+
+# SDL2 specific (if any assets or configs are generated)
+*.bmp
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tiff
+*.ico
+*.cur
+
+# Box2D debug files (if any)
+*.box2d
+*.physics
+
+# Backup files
+*.bak
+*.backup
+*.orig
+*.rej
+
+# Coverage reports
+*.gcov
+*.gcda
+*.gcno
+coverage.info
+coverage/
+
+# Profiling files
+*.prof
+*.profraw
+gmon.out
+
+# Runtime data
+*.pid
+*.seed
+*.pidfile
+
+# Editor directories and files
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Local NetBeans project (if using NetBeans)
+nbproject/
+
+# Local C++ Tag files
+.tags
+.tags_sorted_by_file
+.ctags_solution
+
+# Compiled Dynamic libraries
+*.so.*
+*.dylib.*
+
+# Compiled Static libraries
+*.lai
+
+# Executable names
+ConsoleGame
+
+# Build script artifacts
+*.sh.bak
+build.log

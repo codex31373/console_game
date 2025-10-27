@@ -35,7 +35,7 @@ GameObject::~GameObject() {
     // Body cleanup is handled by the physics world
 }
 
-void GameObject::update(float deltaTime) {
+void GameObject::update([[maybe_unused]] float deltaTime) {
     // Update render position based on physics body position
     b2Vec2 pos = m_body->GetPosition();
     m_renderRect.x = static_cast<int>((pos.x * PIXELS_PER_METER) - (m_renderRect.w / 2));
