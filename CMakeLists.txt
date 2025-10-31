@@ -10,14 +10,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SOURCES
     src/main.cpp
     src/Game.cpp
-    src/PhysicsWorld.cpp
     src/GameObject.cpp
+    src/Player.cpp
 )
 
 set(HEADERS
-    include/Game.hpp
-    include/PhysicsWorld.hpp
-    include/GameObject.hpp
+    src/Game.hpp
+    src/GameObject.hpp
+    src/Player.hpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
@@ -25,24 +25,18 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
-pkg_check_modules(SDL2_IMAGE SDL2_image)
-pkg_check_modules(BOX2D REQUIRED box2d)
 
 # Include directories
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${SDL2_INCLUDE_DIRS}
-        ${SDL2_IMAGE_INCLUDE_DIRS}
-        ${BOX2D_INCLUDE_DIRS}
 )
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         ${SDL2_LIBRARIES}
-        ${SDL2_IMAGE_LIBRARIES}
-        ${BOX2D_LIBRARIES}
 )
 
 # Compiler warnings
