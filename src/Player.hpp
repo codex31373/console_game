@@ -28,10 +28,17 @@ public:
     
     // Movement states
     void setGrounded(bool grounded) { m_isGrounded = grounded; }
-    bool isClimbing() const { return m_isClimbing; }
-    void setClimbing(bool climbing) { m_isClimbing = climbing; }
-    float getVelY() const { return m_velY; }
+    bool isGrounded() const { return m_isGrounded; }
+    
+    // Velocity control
+    void setVelX(float velX) { m_velX = velX; }
+    float getVelX() const { return m_velX; }
     void setVelY(float velY) { m_velY = velY; }
+    float getVelY() const { return m_velY; }
+    
+    // Climbing state
+    void setClimbing(bool climbing) { m_isClimbing = climbing; }
+    bool isClimbing() const { return m_isClimbing; }
     
     // Life system
     int getLives() const { return m_lives; }

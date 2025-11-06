@@ -239,6 +239,10 @@ void Game::processEvents() {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             m_isRunning = false;
+        } else if (event.type == SDL_KEYDOWN) {
+            if (event.key.keysym.sym == SDLK_ESCAPE) {
+                m_isRunning = false;
+            }
         }
         handleInput(event);
     }
@@ -305,6 +309,12 @@ void Game::update(float deltaTime) {
     // Reset grounded state - will be set to true if standing on something
     m_player->setGrounded(false);
     
+    // Update distance traveled (only when moving right and game is not over)
+    if (!m_gameOver && m_player->getVelX() > 0) {
+        float distanceDelta = m_player->getVelX() * deltaTime;
+        m_player->updateDistance(distanceDelta);
+    }
+    
     // Check for platform and ground collisions
     bool onGround = false;
     float playerBottom = m_player->getY() + m_player->getHeight();
@@ -339,24 +349,46 @@ void Game::update(float deltaTime) {
             onGround = true;
             break;
         }
-        // Check collision with vertical platforms (walls) - but skip the ground
+        // Check collision with vertical obstacles (walls)
         else if (auto wall = dynamic_cast<GameObject*>(obj.get())) {
-            // Only treat as wall if height > width AND it's not the ground (ground is very wide)
-            if (wall->getHeight() > wall->getWidth() && wall->getWidth() < 100.0f) {
+            // Check if this is a vertical obstacle (taller than wide and not too wide)
+            if (wall->getHeight() > wall->getWidth() * 1.5f && wall->getWidth() < 50.0f) {
                 float wallLeft = wall->getX();
                 float wallRight = wall->getX() + wall->getWidth();
                 float wallTop = wall->getY();
                 float wallBottom = wall->getY() + wall->getHeight();
                 
-                // Only check wall collision if player is within the vertical bounds
-                if (playerBottom > wallTop + 5.0f && m_player->getY() < wallBottom - 5.0f) {
-                    // Check for left side collision (player moving right into wall)
-                    if (playerRight > wallLeft && playerRight < wallLeft + 15.0f) {
-                        m_player->setPosition(wallLeft - m_player->getWidth(), m_player->getY());
-                    }
-                    // Check for right side collision (player moving left into wall)
-                    else if (playerLeft < wallRight && playerLeft > wallRight - 15.0f) {
-                        m_player->setPosition(wallRight, m_player->getY());
+                // Calculate overlap on both axes
+                float overlapX = std::min(playerRight, wallRight) - std::max(playerLeft, wallLeft);
+                float overlapY = std::min(playerBottom, wallBottom) - std::max(m_player->getY(), wallTop);
+                
+                // Only process collision if there's actual overlap
+                if (overlapX > 0 && overlapY > 0) {
+                    // Determine the side of collision with a small bias
+                    if (overlapX < overlapY) {
+                        // Horizontal collision (from left or right)
+                        if (m_player->getX() < wallLeft) {
+                            // Collision from left
+                            m_player->setPosition(wallLeft - m_player->getWidth() - 0.1f, m_player->getY());
+                            m_player->setVelX(0);
+                        } else {
+                            // Collision from right
+                            m_player->setPosition(wallRight + 0.1f, m_player->getY());
+                            m_player->setVelX(0);
+                        }
+                    } else {
+                        // Vertical collision (from top or bottom)
+                        if (m_player->getY() < wallTop) {
+                            // Collision from top
+                            m_player->setPosition(m_player->getX(), wallTop - m_player->getHeight() - 0.1f);
+                            m_player->setGrounded(true);
+                            m_player->setVelY(0);
+                            onGround = true;
+                        } else {
+                            // Collision from bottom (hitting head)
+                            m_player->setPosition(m_player->getX(), wallBottom + 0.1f);
+                            m_player->setVelY(0);
+                        }
                     }
                 }
             }
@@ -636,33 +668,60 @@ void Game::renderUI() {
     SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red hearts
     
     for (int i = 0; i < lives; i++) {
-        int heartX = 20 + i * 40;
-        int heartY = 20;
-        int heartSize = 25;
+        int heartX = 20 + i * 35;  // Slightly closer together
+        int heartY = 25;
+        int size = 20;  // Slightly larger heart
         
-        // Draw a simple heart shape (two circles and a triangle)
-        SDL_Rect leftCircle = {heartX, heartY, heartSize/2, heartSize/2};
-        SDL_Rect rightCircle = {heartX + heartSize/2, heartY, heartSize/2, heartSize/2};
-        SDL_RenderFillRect(m_renderer, &leftCircle);
-        SDL_RenderFillRect(m_renderer, &rightCircle);
-        
-        // Triangle bottom
-        for (int y = 0; y < heartSize/2; y++) {
-            SDL_RenderDrawLine(m_renderer, 
-                heartX + y/2, heartY + heartSize/2 + y,
-                heartX + heartSize - y/2, heartY + heartSize/2 + y);
+        // Draw a better heart shape (rotated 180 degrees)
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                // Heart shape equation with 180-degree rotation (invert both x and y)
+                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                
+                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
+                float x2 = xv * xv;
+                float y2 = yv * yv;
+                float y3 = y2 * yv;
+                
+                if ((x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3 < 0.0f) {
+                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                }
+            }
         }
+        
+        // Add a subtle outline
+        SDL_SetRenderDrawColor(m_renderer, 200, 0, 0, 255);
+        SDL_Rect heartRect = {heartX - 2, heartY - 5, size + 4, size + 4};
+        SDL_RenderDrawRect(m_renderer, &heartRect);
+        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
     }
     
     // Draw empty hearts for lost lives
-    SDL_SetRenderDrawColor(m_renderer, 100, 100, 100, 255); // Gray
+    SDL_SetRenderDrawColor(m_renderer, 100, 0, 0, 100); // Darker red with transparency
     for (int i = lives; i < 3; i++) {
-        int heartX = 20 + i * 40;
-        int heartY = 20;
-        int heartSize = 25;
+        int heartX = 20 + i * 35;
+        int heartY = 25;
+        int size = 20;
         
-        SDL_Rect outline = {heartX, heartY, heartSize, heartSize};
-        SDL_RenderDrawRect(m_renderer, &outline);
+        // Draw outline of heart (rotated 180 degrees)
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                // Heart shape equation with 180-degree rotation (invert both x and y)
+                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                
+                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
+                float x2 = xv * xv;
+                float y2 = yv * yv;
+                float y3 = y2 * yv;
+                
+                float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
+                if (val < 0.05f && val > -0.05f) {  // Only draw near the edge
+                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                }
+            }
+        }
     }
     
     // Draw distance traveled in top-right corner
@@ -702,14 +761,37 @@ void Game::renderUI() {
         SDL_Rect overlay = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(m_renderer, &overlay);
         
-        // Draw GAME OVER box
-        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
-        SDL_Rect gameOverBg = {SCREEN_WIDTH/2 - 220, SCREEN_HEIGHT/2 - 120, 440, 100};
+        // Draw MACHI box with red border
+        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red border
+        SDL_Rect gameOverBg = {SCREEN_WIDTH/2 - 220, SCREEN_HEIGHT/2 - 150, 440, 80};
         SDL_RenderFillRect(m_renderer, &gameOverBg);
         
+        // White inner box
         SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
-        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 215, SCREEN_HEIGHT/2 - 115, 430, 90};
+        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 215, SCREEN_HEIGHT/2 - 145, 430, 70};
         SDL_RenderFillRect(m_renderer, &gameOverInner);
+        
+        // Draw MACHI text
+        if (m_font) {
+            SDL_Color redColor = {255, 0, 0, 255};
+            SDL_Surface* machiSurface = TTF_RenderText_Blended(m_font, "MACHI", redColor);
+            if (machiSurface) {
+                SDL_Texture* machiTexture = SDL_CreateTextureFromSurface(m_renderer, machiSurface);
+                if (machiTexture) {
+                    int textW = machiSurface->w;
+                    int textH = machiSurface->h;
+                    SDL_Rect dstRect = {
+                        SCREEN_WIDTH/2 - textW/2,
+                        SCREEN_HEIGHT/2 - 130,
+                        textW,
+                        textH
+                    };
+                    SDL_RenderCopy(m_renderer, machiTexture, NULL, &dstRect);
+                    SDL_DestroyTexture(machiTexture);
+                }
+                SDL_FreeSurface(machiSurface);
+            }
+        }
         
         // Draw final distance box
         SDL_SetRenderDrawColor(m_renderer, 100, 100, 255, 255);
@@ -738,9 +820,9 @@ void Game::renderUI() {
             SDL_FreeSurface(finalDistSurface);
         }
         
-        // Draw "INSERT COIN FOR NEW GAME" message
+        // Draw "INSERT A COIN FOR NEW GAME" message
         SDL_Color goldColor = {255, 200, 0, 255};
-        const char* coinMsg = "INSERT COIN FOR A NEW GAME";
+        const char* coinMsg = "INSERT A COIN FOR NEW GAME";
         
         // Create a larger font for the coin message
         TTF_Font* largeFont = TTF_OpenFont("assets/fonts/arial.ttf", 28);
