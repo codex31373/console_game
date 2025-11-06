@@ -49,6 +49,24 @@ bool Game::initialize() {
         std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
     }
+    
+    // Initialize SDL_ttf
+    if (TTF_Init() == -1) {
+        std::cerr << "SDL_ttf could not initialize! SDL_ttf Error: " << TTF_GetError() << std::endl;
+        return false;
+    }
+    
+    // Load a font
+    m_font = TTF_OpenFont("assets/fonts/arial.ttf", 24);
+    if (!m_font) {
+        std::cerr << "Failed to load font! SDL_ttf Error: " << TTF_GetError() << std::endl;
+        // Try a fallback font
+        m_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24);
+        if (!m_font) {
+            std::cerr << "Failed to load fallback font! SDL_ttf Error: " << TTF_GetError() << std::endl;
+            return false;
+        }
+    }
 
     // Set initial game state
     m_isRunning = true;
@@ -69,9 +87,9 @@ void Game::createLevel() {
     float currentX = 0.0f;
     float worldEnd = static_cast<float>(SCREEN_WIDTH * 3);
     
-    // Create ground segments with gaps (VERY FREQUENT, but always crossable)
-    for (int i = 0; i < 15; i++) {
-        float segmentWidth = 120.0f + (rand() % 100); // Shorter segments = more gaps
+    // Create ground segments with more frequent gaps
+    for (int i = 0; i < 20; i++) {  // Increased from 15 to 20 for more segments
+        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px) for more gaps
         
         // Create ground segment
         auto groundSegment = std::make_unique<GameObject>(
@@ -81,12 +99,22 @@ void Game::createLevel() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
+        // Add vertical obstacles on top of ground segments (30% chance)
+        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
+            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+            auto obstacle = std::make_unique<GameObject>(
+                currentX + 10.0f, groundY - obstacleHeight,
+                20.0f, obstacleHeight,
+                Color{150, 75, 0, 255}  // Brown color for obstacles
+            );
+            m_gameObjects.push_back(std::move(obstacle));
+        }
+        
         currentX += segmentWidth;
         
-        // Add gaps VERY FREQUENTLY but keep them jumpable (max 120 pixels)
-        // Player can jump about 140-150 pixels horizontally
-        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 2 == 0) { // 50% chance of gap (more frequent)
-            float gapWidth = 60.0f + (rand() % 50); // Gap width 60-110 (always crossable)
+        // Add gaps more frequently (60% chance) but keep them jumpable
+        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 10 < 6) { // 60% chance of gap
+            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
             m_groundGaps.push_back({currentX, gapWidth});
             currentX += gapWidth;
         }
@@ -183,6 +211,15 @@ void Game::run() {
 void Game::shutdown() {
     m_gameObjects.clear();
     m_player.reset();
+    
+    // Cleanup font
+    if (m_font) {
+        TTF_CloseFont(m_font);
+        m_font = nullptr;
+    }
+    
+    // Quit SDL_ttf
+    TTF_Quit();
     
     if (m_renderer) {
         SDL_DestroyRenderer(m_renderer);
@@ -382,10 +419,10 @@ void Game::generateMorePlatformsIfNeeded() {
     float currentEnd = m_worldWidth;
     m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
     
-    // Add new ground segments with VERY FREQUENT gaps
+    // Add new ground segments with more frequent gaps and obstacles
     float currentX = currentEnd;
-    for (int i = 0; i < 8; i++) {
-        float segmentWidth = 120.0f + (rand() % 100);
+    for (int i = 0; i < 10; i++) {  // Increased from 8 to 10 for more segments
+        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px)
         
         // Create ground segment
         auto groundSegment = std::make_unique<GameObject>(
@@ -395,13 +432,22 @@ void Game::generateMorePlatformsIfNeeded() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
+        // Add vertical obstacles on top of ground segments (30% chance)
+        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
+            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+            auto obstacle = std::make_unique<GameObject>(
+                currentX + 15.0f, 550.0f - obstacleHeight,
+                20.0f, obstacleHeight,
+                Color{120, 80, 60, 255}  // Darker brown for obstacles
+            );
+            m_gameObjects.push_back(std::move(obstacle));
+        }
+        
         currentX += segmentWidth;
         
-        // Add gap frequently (50% chance) but keep jumpable
-        // Minimum gap width is 1.5x player width (60.0f)
-        if (rand() % 2 == 0) {
-            float minGapWidth = 60.0f; // 1.5 * player width (40.0f)
-            float gapWidth = minGapWidth + (rand() % 50); // Gap width 60-110 (always crossable)
+        // Add gaps more frequently (60% chance) but keep them jumpable
+        if (i > 0 && currentX < m_worldWidth - 200.0f && rand() % 10 < 6) {
+            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
             m_groundGaps.push_back({currentX, gapWidth});
             currentX += gapWidth;
         }
@@ -628,20 +674,25 @@ void Game::renderUI() {
     SDL_Rect distanceBg = {SCREEN_WIDTH - 200, 15, 180, 40};
     SDL_RenderFillRect(m_renderer, &distanceBg);
     
-    // Draw distance label and number as text-like display
-    SDL_SetRenderDrawColor(m_renderer, 0, 255, 0, 255); // Green for distance
-    
-    // Simple number display - draw the distance as blocks
+    // Draw distance label and number as text
+    SDL_Color textColor = {0, 255, 0, 255}; // Green for distance
     char distStr[20];
-    snprintf(distStr, sizeof(distStr), "DIST:%d", distanceMeters);
+    snprintf(distStr, sizeof(distStr), "DIST: %d", distanceMeters);
     
-    // Draw each character as simple blocks
-    int charX = SCREEN_WIDTH - 190;
-    int charY = 25;
-    for (int i = 0; distStr[i] != '\0' && i < 15; i++) {
-        // Simple block representation of characters
-        SDL_Rect charRect = {charX + i * 11, charY, 9, 15};
-        SDL_RenderFillRect(m_renderer, &charRect);
+    // Create a surface with the text
+    SDL_Surface* textSurface = TTF_RenderText_Solid(m_font, distStr, textColor);
+    if (textSurface) {
+        // Create a texture from the surface
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(m_renderer, textSurface);
+        if (textTexture) {
+            // Set the rendering space and render to screen
+            SDL_Rect renderQuad = {SCREEN_WIDTH - 190, 25, textSurface->w, textSurface->h};
+            SDL_RenderCopy(m_renderer, textTexture, NULL, &renderQuad);
+            // Free the texture
+            SDL_DestroyTexture(textTexture);
+        }
+        // Free the surface
+        SDL_FreeSurface(textSurface);
     }
     
     // Render GAME OVER message if game is over
@@ -669,35 +720,62 @@ void Game::renderUI() {
         SDL_Rect distanceInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 - 35, 390, 40};
         SDL_RenderFillRect(m_renderer, &distanceInner);
         
-        // Draw final distance text
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 255, 255);
+        // Draw final distance text with font
+        SDL_Color blueColor = {0, 0, 255, 255};
         char finalDistStr[30];
         snprintf(finalDistStr, sizeof(finalDistStr), "FINAL DISTANCE: %d", distanceMeters);
         
-        int textX = SCREEN_WIDTH/2 - 180;
-        int textY = SCREEN_HEIGHT/2 - 25;
-        for (int i = 0; finalDistStr[i] != '\0' && i < 25; i++) {
-            SDL_Rect charRect = {textX + i * 9, textY, 8, 12};
-            SDL_RenderFillRect(m_renderer, &charRect);
+        SDL_Surface* finalDistSurface = TTF_RenderText_Solid(m_font, finalDistStr, blueColor);
+        if (finalDistSurface) {
+            SDL_Texture* finalDistTexture = SDL_CreateTextureFromSurface(m_renderer, finalDistSurface);
+            if (finalDistTexture) {
+                int textW = finalDistSurface->w;
+                int textH = finalDistSurface->h;
+                SDL_Rect dstRect = {SCREEN_WIDTH/2 - textW/2, SCREEN_HEIGHT/2 - 25, textW, textH};
+                SDL_RenderCopy(m_renderer, finalDistTexture, NULL, &dstRect);
+                SDL_DestroyTexture(finalDistTexture);
+            }
+            SDL_FreeSurface(finalDistSurface);
         }
         
         // Draw "INSERT COIN FOR NEW GAME" message
-        SDL_SetRenderDrawColor(m_renderer, 255, 200, 0, 255); // Gold color
-        SDL_Rect coinBg = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 + 40, 400, 50};
-        SDL_RenderFillRect(m_renderer, &coinBg);
-        
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
-        SDL_Rect coinInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 + 45, 390, 40};
-        SDL_RenderFillRect(m_renderer, &coinInner);
-        
-        // Draw coin message text
-        SDL_SetRenderDrawColor(m_renderer, 255, 200, 0, 255);
+        SDL_Color goldColor = {255, 200, 0, 255};
         const char* coinMsg = "INSERT COIN FOR A NEW GAME";
-        int msgX = SCREEN_WIDTH/2 - 190;
-        int msgY = SCREEN_HEIGHT/2 + 55;
-        for (int i = 0; coinMsg[i] != '\0' && i < 25; i++) {
-            SDL_Rect charRect = {msgX + i * 9, msgY, 8, 12};
-            SDL_RenderFillRect(m_renderer, &charRect);
+        
+        // Create a larger font for the coin message
+        TTF_Font* largeFont = TTF_OpenFont("assets/fonts/arial.ttf", 28);
+        if (!largeFont) {
+            largeFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28);
+        }
+        
+        if (largeFont) {
+            SDL_Surface* coinSurface = TTF_RenderText_Solid(largeFont, coinMsg, goldColor);
+            if (coinSurface) {
+                SDL_Texture* coinTexture = SDL_CreateTextureFromSurface(m_renderer, coinSurface);
+                if (coinTexture) {
+                    // Draw background
+                    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+                    SDL_Rect bgRect = {
+                        SCREEN_WIDTH/2 - coinSurface->w/2 - 10,
+                        SCREEN_HEIGHT/2 + 50,
+                        coinSurface->w + 20,
+                        coinSurface->h + 10
+                    };
+                    SDL_RenderFillRect(m_renderer, &bgRect);
+                    
+                    // Draw text
+                    SDL_Rect textRect = {
+                        SCREEN_WIDTH/2 - coinSurface->w/2,
+                        SCREEN_HEIGHT/2 + 55,
+                        coinSurface->w,
+                        coinSurface->h
+                    };
+                    SDL_RenderCopy(m_renderer, coinTexture, NULL, &textRect);
+                    SDL_DestroyTexture(coinTexture);
+                }
+                SDL_FreeSurface(coinSurface);
+            }
+            TTF_CloseFont(largeFont);
         }
     }
 }

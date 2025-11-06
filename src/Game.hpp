@@ -2,6 +2,7 @@
 #define GAME_HPP
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <vector>
 #include <memory>
 #include "GameObject.hpp"
@@ -37,6 +38,7 @@ private:
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
+    TTF_Font* m_font = nullptr;
     bool m_isRunning = false;
     Uint32 m_lastFrameTime = 0;
     
