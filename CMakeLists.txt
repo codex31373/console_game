@@ -13,6 +13,7 @@ set(SOURCES
     src/GameObject.cpp
     src/Player.cpp
     src/Platform.cpp
+    src/Bird.cpp
 )
 
 set(HEADERS
@@ -20,6 +21,7 @@ set(HEADERS
     src/GameObject.hpp
     src/Player.hpp
     src/Platform.hpp
+    src/Bird.hpp
     src/Common.hpp
 )
 

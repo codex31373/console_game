@@ -33,6 +33,14 @@ public:
     float getVelY() const { return m_velY; }
     void setVelY(float velY) { m_velY = velY; }
     
+    // Animation states
+    enum class AnimationState {
+        IDLE,
+        RUNNING_RIGHT,
+        RUNNING_LEFT,
+        JUMPING
+    };
+    
 private:
     // Position and size
     float m_x, m_y;
@@ -50,6 +58,11 @@ private:
     Color m_color;
     float m_cameraOffsetX = 0.0f;
     float m_cameraOffsetY = 0.0f;
+    
+    // Animation
+    AnimationState m_animState = AnimationState::IDLE;
+    float m_animationTime = 0.0f;
+    bool m_facingRight = true;
 };
 
 #endif // PLAYER_HPP

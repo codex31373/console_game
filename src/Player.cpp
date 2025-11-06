@@ -1,4 +1,5 @@
 #include "Player.hpp"
+#include <cmath>
 
 Player::Player(float x, float y, float width, float height, const Color& color)
     : m_x(x), m_y(y)
@@ -42,57 +43,113 @@ void Player::update(float deltaTime) {
     
     // Only prevent going off the left edge of the world
     if (m_x < 0) m_x = 0;
+    
+    // Update animation state
+    m_animationTime += deltaTime;
+    
+    if (!m_isGrounded) {
+        m_animState = AnimationState::JUMPING;
+    } else if (m_velX > 0) {
+        m_animState = AnimationState::RUNNING_RIGHT;
+        m_facingRight = true;
+    } else if (m_velX < 0) {
+        m_animState = AnimationState::RUNNING_LEFT;
+        m_facingRight = false;
+    } else {
+        m_animState = AnimationState::IDLE;
+    }
 }
 
 void Player::render(SDL_Renderer* renderer) const {
-    // Draw player (simple rectangle for now)
-    SDL_Rect playerRect = {
-        static_cast<int>(m_x - m_cameraOffsetX),
-        static_cast<int>(m_y - m_cameraOffsetY),
-        static_cast<int>(m_width),
-        static_cast<int>(m_height)
-    };
+    int screenX = static_cast<int>(m_x - m_cameraOffsetX);
+    int screenY = static_cast<int>(m_y - m_cameraOffsetY);
     
-    // Draw filled rectangle
+    // Animation offsets
+    int bodyOffsetY = 0;
+    int legOffset = 0;
+    
+    // Calculate animation frame for running
+    if (m_animState == AnimationState::RUNNING_LEFT || m_animState == AnimationState::RUNNING_RIGHT) {
+        legOffset = static_cast<int>(std::sin(m_animationTime * 10.0f) * 3);
+        bodyOffsetY = static_cast<int>(std::abs(std::sin(m_animationTime * 10.0f)) * 2);
+    } else if (m_animState == AnimationState::JUMPING) {
+        bodyOffsetY = -5; // Stretched when jumping
+    }
+    
+    // Draw cat body
+    SDL_Rect bodyRect = {
+        screenX + 5,
+        screenY + 15 + bodyOffsetY,
+        static_cast<int>(m_width - 10),
+        static_cast<int>(m_height - 25)
+    };
     SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);
-    SDL_RenderFillRect(renderer, &playerRect);
+    SDL_RenderFillRect(renderer, &bodyRect);
     
-    // Draw outline
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderDrawRect(renderer, &playerRect);
-    
-    // Draw cat face (simple eyes and mouth)
-    int eyeY = static_cast<int>(m_y - m_cameraOffsetY + m_height * 0.3f);
-    int eyeSize = static_cast<int>(m_width * 0.15f);
-    
-    // Left eye
-    SDL_Rect leftEye = {
-        static_cast<int>(m_x - m_cameraOffsetX + m_width * 0.25f - eyeSize/2.0f),
-        eyeY,
-        eyeSize,
-        eyeSize
+    // Draw head
+    SDL_Rect headRect = {
+        screenX + 8,
+        screenY + 5 + bodyOffsetY,
+        static_cast<int>(m_width - 16),
+        20
     };
+    SDL_RenderFillRect(renderer, &headRect);
     
-    // Right eye
-    SDL_Rect rightEye = {
-        static_cast<int>(m_x - m_cameraOffsetX + m_width * 0.75f - eyeSize/2.0f),
-        eyeY,
-        eyeSize,
-        eyeSize
+    // Draw ears
+    SDL_SetRenderDrawColor(renderer, m_color.r - 20, m_color.g - 20, m_color.b, m_color.a);
+    int earSize = 8;
+    SDL_Point leftEarPoints[] = {
+        {screenX + 10, screenY + 5 + bodyOffsetY},
+        {screenX + 10 - earSize/2, screenY + bodyOffsetY},
+        {screenX + 10 + earSize, screenY + 5 + bodyOffsetY}
     };
+    SDL_RenderDrawLines(renderer, leftEarPoints, 3);
     
-    // Draw eyes (black)
+    SDL_Point rightEarPoints[] = {
+        {screenX + static_cast<int>(m_width) - 10 - earSize, screenY + 5 + bodyOffsetY},
+        {screenX + static_cast<int>(m_width) - 10 + earSize/2, screenY + bodyOffsetY},
+        {screenX + static_cast<int>(m_width) - 10, screenY + 5 + bodyOffsetY}
+    };
+    SDL_RenderDrawLines(renderer, rightEarPoints, 3);
+    
+    // Draw eyes
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    int eyeY = screenY + 12 + bodyOffsetY;
+    int eyeSize = 4;
+    
+    int leftEyeX = m_facingRight ? screenX + 15 : screenX + 12;
+    int rightEyeX = m_facingRight ? screenX + 25 : screenX + 22;
+    
+    SDL_Rect leftEye = {leftEyeX, eyeY, eyeSize, eyeSize};
+    SDL_Rect rightEye = {rightEyeX, eyeY, eyeSize, eyeSize};
     SDL_RenderFillRect(renderer, &leftEye);
     SDL_RenderFillRect(renderer, &rightEye);
     
-    // Draw mouth (simple line)
-    SDL_RenderDrawLine(
-        renderer,
-        static_cast<int>(m_x - m_cameraOffsetX + m_width * 0.3f),
-        static_cast<int>(m_y - m_cameraOffsetY + m_height * 0.7f),
-        static_cast<int>(m_x - m_cameraOffsetX + m_width * 0.7f),
-        static_cast<int>(m_y - m_cameraOffsetY + m_height * 0.7f)
-    );
+    // Draw nose
+    SDL_SetRenderDrawColor(renderer, 255, 182, 193, 255); // Pink
+    SDL_Rect nose = {screenX + static_cast<int>(m_width/2) - 2, screenY + 18 + bodyOffsetY, 4, 3};
+    SDL_RenderFillRect(renderer, &nose);
+    
+    // Draw tail (wagging based on animation)
+    SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);
+    int tailWag = m_animState == AnimationState::RUNNING_LEFT || m_animState == AnimationState::RUNNING_RIGHT 
+                  ? static_cast<int>(std::sin(m_animationTime * 12.0f) * 8) : 0;
+    int tailBaseX = m_facingRight ? screenX + static_cast<int>(m_width) - 5 : screenX + 5;
+    SDL_RenderDrawLine(renderer, 
+        tailBaseX, screenY + 25 + bodyOffsetY,
+        tailBaseX + (m_facingRight ? 10 : -10), screenY + 15 + tailWag + bodyOffsetY);
+    
+    // Draw legs (animated when running)
+    SDL_SetRenderDrawColor(renderer, m_color.r - 30, m_color.g - 30, m_color.b, m_color.a);
+    // Front legs
+    SDL_RenderDrawLine(renderer, screenX + 15, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
+                       screenX + 15, screenY + static_cast<int>(m_height) + legOffset);
+    SDL_RenderDrawLine(renderer, screenX + 20, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
+                       screenX + 20, screenY + static_cast<int>(m_height) - legOffset);
+    // Back legs  
+    SDL_RenderDrawLine(renderer, screenX + 25, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
+                       screenX + 25, screenY + static_cast<int>(m_height) - legOffset);
+    SDL_RenderDrawLine(renderer, screenX + 30, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
+                       screenX + 30, screenY + static_cast<int>(m_height) + legOffset);
 }
 

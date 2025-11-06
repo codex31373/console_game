@@ -2,9 +2,11 @@
 #include "GameObject.hpp"
 #include "Player.hpp"
 #include "Platform.hpp"
+#include "Bird.hpp"
 #include "Common.hpp"
 #include <iostream>
 #include <memory>
+#include <algorithm>
 #include <cstdlib>  // For rand()
 
 Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_worldWidth(2000.0f), m_cameraX(0.0f), m_cameraY(0.0f) {
@@ -201,6 +203,16 @@ void Game::update(float deltaTime) {
     if (m_player->getX() > m_worldWidth - 1000.0f) {
         generateMorePlatformsIfNeeded();
     }
+    
+    // Spawn birds periodically
+    m_birdSpawnTimer += deltaTime;
+    if (m_birdSpawnTimer >= m_birdSpawnInterval) {
+        spawnBirds();
+        m_birdSpawnTimer = 0.0f;
+    }
+    
+    // Update birds
+    updateBirds(deltaTime);
 
     // Update player first
     m_player->update(deltaTime);
@@ -284,6 +296,9 @@ void Game::update(float deltaTime) {
     for (auto& obj : m_gameObjects) {
         obj->update(deltaTime);
     }
+    
+    // Check bird collisions with player
+    checkBirdCollisions();
 }
 
 void Game::generateMorePlatformsIfNeeded() {
@@ -335,6 +350,13 @@ void Game::render() {
         obj->render(m_renderer);
     }
     
+    // Render birds
+    for (const auto& bird : m_birds) {
+        if (bird->isActive()) {
+            bird->render(m_renderer);
+        }
+    }
+    
     // Render player on top
     if (m_player) {
         m_player->render(m_renderer);
@@ -342,4 +364,68 @@ void Game::render() {
 
     // Update screen
     SDL_RenderPresent(m_renderer);
+}
+
+void Game::spawnBirds() {
+    if (!m_player) return;
+    
+    // Spawn bird ahead of player at random height
+    float spawnX = m_player->getX() + SCREEN_WIDTH + 100.0f;
+    float spawnY = 100.0f + (rand() % 300); // Random height between 100-400
+    
+    // Random speed variation
+    float speed = -120.0f - (rand() % 80); // Speed between -120 and -200
+    
+    auto bird = std::make_unique<Bird>(spawnX, spawnY, speed);
+    bird->setCameraOffset(m_cameraX, 0);
+    m_birds.push_back(std::move(bird));
+}
+
+void Game::updateBirds(float deltaTime) {
+    // Update all birds
+    for (auto& bird : m_birds) {
+        if (bird->isActive()) {
+            bird->update(deltaTime);
+            bird->setCameraOffset(m_cameraX, 0);
+        }
+    }
+    
+    // Remove inactive birds
+    m_birds.erase(
+        std::remove_if(m_birds.begin(), m_birds.end(),
+            [](const std::unique_ptr<Bird>& bird) { return !bird->isActive(); }),
+        m_birds.end()
+    );
+}
+
+void Game::checkBirdCollisions() {
+    if (!m_player) return;
+    
+    float playerLeft = m_player->getX();
+    float playerRight = m_player->getX() + m_player->getWidth();
+    float playerTop = m_player->getY();
+    float playerBottom = m_player->getY() + m_player->getHeight();
+    
+    for (auto& bird : m_birds) {
+        if (!bird->isActive()) continue;
+        
+        float birdLeft = bird->getLeft();
+        float birdRight = bird->getRight();
+        float birdTop = bird->getTop();
+        float birdBottom = bird->getBottom();
+        
+        // AABB collision detection
+        if (playerRight > birdLeft && playerLeft < birdRight &&
+            playerBottom > birdTop && playerTop < birdBottom) {
+            
+            // Collision detected! Push player back and deactivate bird
+            bird->setActive(false);
+            
+            // Push player back slightly
+            m_player->setPosition(m_player->getX() - 50.0f, m_player->getY());
+            
+            // Optional: Add visual feedback or sound here
+            std::cout << "Bird collision! " << std::endl;
+        }
+    }
 }

@@ -7,6 +7,7 @@
 #include "GameObject.hpp"
 #include "Player.hpp"
 #include "Stair.hpp"
+#include "Bird.hpp"
 
 class Game {
 public:
@@ -28,6 +29,9 @@ private:
     
     void createLevel();
     void generateMorePlatformsIfNeeded();
+    void spawnBirds();
+    void updateBirds(float deltaTime);
+    void checkBirdCollisions();
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
@@ -36,11 +40,16 @@ private:
     
     std::vector<std::unique_ptr<GameObject>> m_gameObjects;
     std::unique_ptr<Player> m_player;
+    std::vector<std::unique_ptr<Bird>> m_birds;
     
     // World and camera properties
     float m_worldWidth = 2000.0f;
     float m_cameraX = 0.0f;
     float m_cameraY = 0.0f;
+    
+    // Bird spawning
+    float m_birdSpawnTimer = 0.0f;
+    float m_birdSpawnInterval = 3.0f;
 };
 
 #endif // GAME_HPP
