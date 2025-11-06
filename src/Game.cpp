@@ -95,23 +95,34 @@ void Game::createLevel() {
         m_gameObjects.push_back(std::move(platform));
     }
     
-    // Add some vertical platforms for climbing
+    // Add some vertical obstacles with stepping stones
     for (int i = 0; i < 5; ++i) {
-        float x = 400.0f + i * 200.0f;
-        float height = 100.0f + (i % 3) * 50.0f;
+        float x = 400.0f + i * 250.0f;
+        // Reduced height: 60-90 pixels (jumpable range)
+        float height = 60.0f + (i % 3) * 15.0f;
         
-        // Vertical platform
-        auto vPlatform = std::make_unique<GameObject>(
-            x, 550.0f - height,
-            30.0f, height,
-            Color{150, 75, 0, 255}  // Brown for vertical platforms
+        // Vertical obstacle (shorter and less frequent)
+        if (i % 2 == 0) {
+            auto vPlatform = std::make_unique<GameObject>(
+                x, 550.0f - height,
+                25.0f, height,
+                Color{150, 75, 0, 255}  // Brown for vertical obstacles
+            );
+            m_gameObjects.push_back(std::move(vPlatform));
+        }
+        
+        // Multiple stepping stone platforms for easier traversal
+        auto midPlatform = std::make_unique<Platform>(
+            x - 80.0f, 480.0f,
+            100.0f,
+            Color{200, 150, 100, 255}  // Light brown
         );
-        m_gameObjects.push_back(std::move(vPlatform));
+        m_gameObjects.push_back(std::move(midPlatform));
         
-        // Small platform on top
+        // Higher platform
         auto topPlatform = std::make_unique<Platform>(
-            x - 50.0f, 550.0f - height - 20.0f,
-            130.0f,
+            x + 40.0f, 420.0f,
+            100.0f,
             Color{100, 100, 255, 255}  // Blue for top platforms
         );
         m_gameObjects.push_back(std::move(topPlatform));
@@ -282,20 +293,33 @@ void Game::generateMorePlatformsIfNeeded() {
     // Extend the ground
     m_gameObjects[0] = std::make_unique<GameObject>(0.0f, 550.0f, m_worldWidth, 50.0f, Color{139, 69, 19, 255});
     
-    // Generate new platforms in the extended area
-    for (int i = 0; i < 10; ++i) {
-        float x = currentEnd + i * 150.0f;
-        float y = 400.0f + 100.0f * sin((currentEnd + i * 150.0f) * 0.01f);
-        m_gameObjects.push_back(std::make_unique<Platform>(x, y, 100.0f));
+    // Generate new platforms in the extended area with better progression
+    for (int i = 0; i < 12; ++i) {
+        float x = currentEnd + i * 140.0f;
+        // Gentler wave pattern with lower amplitude
+        float y = 460.0f - 60.0f * sin((currentEnd + i * 140.0f) * 0.008f);
         
-        // Add some vertical walls with platforms occasionally
-        if (i % 3 == 0) {
-            float wallHeight = 200.0f + (rand() % 100);
+        // Main platform
+        m_gameObjects.push_back(std::make_unique<Platform>(x, y, 110.0f));
+        
+        // Add obstacles and variety occasionally
+        if (i % 4 == 0) {
+            // Small jumpable obstacle (60-80 pixels tall)
+            float obstacleHeight = 60.0f + (rand() % 21);
             m_gameObjects.push_back(
-                std::make_unique<GameObject>(x + 50.0f, 550.0f - wallHeight, 30.0f, wallHeight, Color{100, 100, 100, 255})
+                std::make_unique<GameObject>(x + 50.0f, 550.0f - obstacleHeight, 25.0f, obstacleHeight, Color{120, 80, 60, 255})
             );
+            
+            // Stepping stone to bypass obstacle
             m_gameObjects.push_back(
-                std::make_unique<Platform>(x + 80.0f, 550.0f - wallHeight - 30.0f, 100.0f)
+                std::make_unique<Platform>(x - 40.0f, 480.0f, 80.0f, Color{180, 140, 100, 255})
+            );
+        }
+        
+        // Add occasional higher platforms for variety
+        if (i % 3 == 1) {
+            m_gameObjects.push_back(
+                std::make_unique<Platform>(x + 60.0f, y - 80.0f, 90.0f, Color{150, 200, 150, 255})
             );
         }
     }
