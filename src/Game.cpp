@@ -87,11 +87,26 @@ void Game::createLevel() {
     float currentX = 0.0f;
     float worldEnd = static_cast<float>(SCREEN_WIDTH * 3);
     
-    // Create ground segments with more frequent gaps
-    for (int i = 0; i < 20; i++) {  // Increased from 15 to 20 for more segments
-        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px) for more gaps
+    // Create ground with very wide and frequent gaps
+    float currentSegment = 0;
+    while (currentX < worldEnd) {
+        // Add a gap (80% chance after first segment)
+        if (currentSegment > 0 && rand() % 10 < 8) {
+            // Very wide gaps: 150-300px
+            float gapWidth = 150.0f + (rand() % 150);
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+            
+            // Skip adding ground segment if we've reached the end
+            if (currentX >= worldEnd) break;
+        }
         
-        // Create ground segment
+        // Add ground segment (shorter segments: 40-100px)
+        float segmentWidth = 40.0f + (rand() % 60);
+        if (currentX + segmentWidth > worldEnd) {
+            segmentWidth = worldEnd - currentX;
+        }
+        
         auto groundSegment = std::make_unique<GameObject>(
             currentX, groundY,
             segmentWidth, 50.0f,
@@ -99,25 +114,19 @@ void Game::createLevel() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add vertical obstacles on top of ground segments (30% chance)
-        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
-            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+        // Add vertical obstacles (20% chance)
+        if (currentSegment > 1 && rand() % 5 == 0) {
+            float obstacleHeight = 60.0f + (rand() % 60);
             auto obstacle = std::make_unique<GameObject>(
                 currentX + 10.0f, groundY - obstacleHeight,
                 20.0f, obstacleHeight,
-                Color{150, 75, 0, 255}  // Brown color for obstacles
+                Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(obstacle));
         }
         
         currentX += segmentWidth;
-        
-        // Add gaps more frequently (60% chance) but keep them jumpable
-        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 10 < 6) { // 60% chance of gap
-            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
-            m_groundGaps.push_back({currentX, gapWidth});
-            currentX += gapWidth;
-        }
+        currentSegment++;
     }
     
     // Fill remaining ground
@@ -330,7 +339,7 @@ void Game::update(float deltaTime) {
         
         // Check if this is a ground segment (wide, flat object near the bottom of the screen)
         bool isGroundSegment = (objectTop >= 540.0f && objectTop <= 560.0f && 
-                              objectBottom > 550.0f && obj->getWidth() > 100.0f);
+                              objectBottom > 550.0f && obj->getWidth() >= 20.0f);
         
         // Check if player is standing on or landing on platform/ground
         if ((dynamic_cast<Platform*>(obj.get()) || isGroundSegment) &&
@@ -451,38 +460,48 @@ void Game::generateMorePlatformsIfNeeded() {
     float currentEnd = m_worldWidth;
     m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
     
-    // Add new ground segments with more frequent gaps and obstacles
+    // Add new ground with very wide and frequent gaps
     float currentX = currentEnd;
-    for (int i = 0; i < 10; i++) {  // Increased from 8 to 10 for more segments
-        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px)
+    float currentSegment = 0;
+    
+    while (currentX < m_worldWidth) {
+        // Add a gap (80% chance after first segment)
+        if (currentSegment > 0 && rand() % 10 < 8) {
+            // Very wide gaps: 150-300px
+            float gapWidth = 150.0f + (rand() % 150);
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+            
+            // Skip adding ground segment if we've reached the end
+            if (currentX >= m_worldWidth) break;
+        }
         
-        // Create ground segment
+        // Add ground segment (shorter segments: 40-100px)
+        float segmentWidth = 40.0f + (rand() % 60);
+        if (currentX + segmentWidth > m_worldWidth) {
+            segmentWidth = m_worldWidth - currentX;
+        }
+        
         auto groundSegment = std::make_unique<GameObject>(
             currentX, 550.0f,
             segmentWidth, 50.0f,
-            Color{139, 69, 19, 255}
+            Color{0, 128, 0, 255}
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add vertical obstacles on top of ground segments (30% chance)
-        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
-            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+        // Add vertical obstacles (20% chance)
+        if (currentSegment > 1 && rand() % 5 == 0) {
+            float obstacleHeight = 60.0f + (rand() % 60);
             auto obstacle = std::make_unique<GameObject>(
-                currentX + 15.0f, 550.0f - obstacleHeight,
+                currentX + 10.0f, 550.0f - obstacleHeight,
                 20.0f, obstacleHeight,
-                Color{120, 80, 60, 255}  // Darker brown for obstacles
+                Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(obstacle));
         }
         
         currentX += segmentWidth;
-        
-        // Add gaps more frequently (60% chance) but keep them jumpable
-        if (i > 0 && currentX < m_worldWidth - 200.0f && rand() % 10 < 6) {
-            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
-            m_groundGaps.push_back({currentX, gapWidth});
-            currentX += gapWidth;
-        }
+        currentSegment++;
     }
     
     // Generate new platforms with VERY FEW obstacles
