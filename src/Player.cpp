@@ -74,8 +74,6 @@ void Player::render(SDL_Renderer* renderer) const {
     int bodyOffsetY = 0;
     float leftLegOffset = 0;
     float rightLegOffset = 0;
-    float leftArmOffset = 0;
-    float rightArmOffset = 0;
     
     // Calculate animation frame for running (more exaggerated and smoother)
     if (m_animState == AnimationState::RUNNING_LEFT || m_animState == AnimationState::RUNNING_RIGHT) {
@@ -84,18 +82,12 @@ void Player::render(SDL_Renderer* renderer) const {
         leftLegOffset = std::sin(animPhase) * 12.0f; // Bigger leg movement
         rightLegOffset = std::sin(animPhase + 3.14159f) * 12.0f; // Opposite phase
         
-        // Arms swing opposite to legs (more visible)
-        leftArmOffset = std::sin(animPhase + 3.14159f) * 8.0f;
-        rightArmOffset = std::sin(animPhase) * 8.0f;
-        
         // Subtle body bounce
         bodyOffsetY = static_cast<int>(std::abs(std::sin(animPhase * 2.0f)) * 3);
     } else if (m_animState == AnimationState::JUMPING) {
         bodyOffsetY = -4;
         leftLegOffset = -8.0f; // Legs tucked up
         rightLegOffset = -8.0f;
-        leftArmOffset = -10.0f; // Arms up
-        rightArmOffset = -10.0f;
     }
     
     // Draw cat body (oval/rounded)
@@ -194,35 +186,7 @@ void Player::render(SDL_Renderer* renderer) const {
         }
     }
     
-    // Draw hands/arms (MORE VISIBLE with much greater thickness)
-    SDL_SetRenderDrawColor(renderer, m_color.r - 25, m_color.g - 25, m_color.b - 5, m_color.a);
-    int leftArmX = m_facingRight ? screenX + 10 : screenX + 24;
-    int rightArmX = m_facingRight ? screenX + 22 : screenX + 12;
-    
-    // Each arm is 7 pixels wide (much thicker and more visible)
-    for (int i = 0; i < 7; i++) {
-        SDL_RenderDrawLine(renderer, 
-            leftArmX + i, screenY + 28 + bodyOffsetY,
-            leftArmX + i + static_cast<int>(leftArmOffset / 1.5f), 
-            screenY + 46 + bodyOffsetY + static_cast<int>(leftArmOffset));
-        SDL_RenderDrawLine(renderer,
-            rightArmX + i, screenY + 28 + bodyOffsetY,
-            rightArmX + i + static_cast<int>(rightArmOffset / 1.5f), 
-            screenY + 46 + bodyOffsetY + static_cast<int>(rightArmOffset));
-    }
-    
-    // Draw hand pads (bigger and more visible)
-    SDL_SetRenderDrawColor(renderer, 255, 192, 203, 255);
-    for (int dx = -3; dx <= 3; dx++) {
-        for (int dy = -2; dy <= 2; dy++) {
-            SDL_RenderDrawPoint(renderer,
-                leftArmX + 3 + static_cast<int>(leftArmOffset / 1.5f) + dx,
-                screenY + 46 + bodyOffsetY + static_cast<int>(leftArmOffset) + dy);
-            SDL_RenderDrawPoint(renderer,
-                rightArmX + 3 + static_cast<int>(rightArmOffset / 1.5f) + dx,
-                screenY + 46 + bodyOffsetY + static_cast<int>(rightArmOffset) + dy);
-        }
-    }
+    // Arms removed - they looked like extra feet
     
     // Draw tail (curved and wagging)
     SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);

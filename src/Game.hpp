@@ -6,7 +6,6 @@
 #include <memory>
 #include "GameObject.hpp"
 #include "Player.hpp"
-#include "Stair.hpp"
 #include "Bird.hpp"
 
 class Game {
@@ -34,6 +33,7 @@ private:
     void checkBirdCollisions();
     void renderUI();
     void resetPlayer();
+    void restartGame();
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;

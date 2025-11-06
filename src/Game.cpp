@@ -69,9 +69,9 @@ void Game::createLevel() {
     float currentX = 0.0f;
     float worldEnd = static_cast<float>(SCREEN_WIDTH * 3);
     
-    // Create ground segments with gaps (MORE FREQUENT, but always crossable)
-    for (int i = 0; i < 12; i++) {
-        float segmentWidth = 180.0f + (rand() % 150); // Shorter segments = more gaps
+    // Create ground segments with gaps (VERY FREQUENT, but always crossable)
+    for (int i = 0; i < 15; i++) {
+        float segmentWidth = 120.0f + (rand() % 100); // Shorter segments = more gaps
         
         // Create ground segment
         auto groundSegment = std::make_unique<GameObject>(
@@ -83,10 +83,10 @@ void Game::createLevel() {
         
         currentX += segmentWidth;
         
-        // Add gaps MORE FREQUENTLY but keep them jumpable (max 120 pixels)
+        // Add gaps VERY FREQUENTLY but keep them jumpable (max 120 pixels)
         // Player can jump about 140-150 pixels horizontally
-        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 3 != 0) { // 66% chance of gap
-            float gapWidth = 70.0f + (rand() % 45); // Gap width 70-115 (always crossable)
+        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 2 == 0) { // 50% chance of gap (more frequent)
+            float gapWidth = 60.0f + (rand() % 50); // Gap width 60-110 (always crossable)
             m_groundGaps.push_back({currentX, gapWidth});
             currentX += gapWidth;
         }
@@ -102,10 +102,10 @@ void Game::createLevel() {
         m_gameObjects.push_back(std::move(groundSegment));
     }
 
-    // Create a series of platforms at different heights
-    const int numPlatforms = 15;
+    // Create a series of platforms at different heights (FEWER platforms)
+    const int numPlatforms = 10;  // Reduced from 15
     const float startX = 100.0f;
-    const float platformSpacing = 150.0f;
+    const float platformSpacing = 180.0f;  // Increased spacing
     const float platformWidth = 100.0f;
     
     // Create platforms in a wave-like pattern
@@ -126,23 +126,23 @@ void Game::createLevel() {
         m_gameObjects.push_back(std::move(platform));
     }
     
-    // Add some platforms and FEWER obstacles
-    for (int i = 0; i < 8; ++i) {
-        float x = 300.0f + i * 280.0f;
+    // Add VERY FEW obstacles - only essential ones for crossing
+    for (int i = 0; i < 5; ++i) {  // Reduced from 8
+        float x = 400.0f + i * 350.0f;  // Increased spacing
         
-        // Add small obstacle LESS FREQUENTLY (only 30% chance)
-        if (i > 1 && rand() % 10 < 3) {
-            float height = 50.0f + (rand() % 30); // Small obstacles 50-80px
+        // Add small obstacle RARELY (only 15% chance)
+        if (i > 1 && rand() % 10 < 1) {  // Reduced from 3 to 1
+            float height = 40.0f + (rand() % 20); // Smaller obstacles 40-60px
             auto vPlatform = std::make_unique<GameObject>(
                 x, 550.0f - height,
-                25.0f, height,
+                20.0f, height,
                 Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(vPlatform));
         }
         
-        // Add platforms at various heights for navigation
-        if (i % 2 == 1) {
+        // Add platforms at various heights for navigation (LESS FREQUENTLY)
+        if (i % 3 == 1) {  // Changed from i % 2 == 1
             auto midPlatform = std::make_unique<Platform>(
                 x - 60.0f, 480.0f,
                 110.0f,
@@ -151,7 +151,7 @@ void Game::createLevel() {
             m_gameObjects.push_back(std::move(midPlatform));
         }
         
-        if (i % 3 == 0) {
+        if (i % 4 == 0) {  // Changed from i % 3 == 0
             auto topPlatform = std::make_unique<Platform>(
                 x + 50.0f, 400.0f,
                 100.0f,
@@ -208,7 +208,13 @@ void Game::processEvents() {
     
     // Handle continuous key states for smooth movement
     const Uint8* keyState = SDL_GetKeyboardState(nullptr);
-    if (m_player) {
+    
+    // Handle game over restart with Enter key
+    if (m_gameOver && keyState[SDL_SCANCODE_RETURN]) {
+        restartGame();
+    }
+    
+    if (m_player && !m_gameOver) {
         m_player->handleInput(keyState);
     }
 }
@@ -373,10 +379,10 @@ void Game::generateMorePlatformsIfNeeded() {
     float currentEnd = m_worldWidth;
     m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
     
-    // Add new ground segments with MORE FREQUENT gaps
+    // Add new ground segments with VERY FREQUENT gaps
     float currentX = currentEnd;
-    for (int i = 0; i < 5; i++) {
-        float segmentWidth = 170.0f + (rand() % 140);
+    for (int i = 0; i < 8; i++) {
+        float segmentWidth = 120.0f + (rand() % 100);
         
         // Create ground segment
         auto groundSegment = std::make_unique<GameObject>(
@@ -388,32 +394,32 @@ void Game::generateMorePlatformsIfNeeded() {
         
         currentX += segmentWidth;
         
-        // Add gap frequently (70% chance) but keep jumpable
-        if (rand() % 10 < 7) {
-            float gapWidth = 70.0f + (rand() % 45); // 70-115px (always crossable)
+        // Add gap frequently (50% chance) but keep jumpable
+        if (rand() % 2 == 0) {
+            float gapWidth = 60.0f + (rand() % 50); // 60-110px (always crossable)
             m_groundGaps.push_back({currentX, gapWidth});
             currentX += gapWidth;
         }
     }
     
-    // Generate new platforms with FEWER obstacles
-    for (int i = 0; i < 10; ++i) {
-        float x = currentEnd + i * 150.0f;
-        float y = 460.0f - 50.0f * sin((currentEnd + i * 150.0f) * 0.008f);
+    // Generate new platforms with VERY FEW obstacles
+    for (int i = 0; i < 6; ++i) {  // Reduced from 10
+        float x = currentEnd + i * 200.0f;  // Increased spacing
+        float y = 460.0f - 50.0f * sin((currentEnd + i * 200.0f) * 0.008f);
         
         // Main platform
         m_gameObjects.push_back(std::make_unique<Platform>(x, y, 110.0f));
         
-        // Add obstacles LESS FREQUENTLY (only 20% chance)
-        if (i % 5 == 0 && rand() % 10 < 2) {
-            float obstacleHeight = 50.0f + (rand() % 25); // 50-75px
+        // Add obstacles VERY RARELY (only 10% chance)
+        if (i % 6 == 0 && rand() % 10 < 1) {  // Reduced from 2 to 1
+            float obstacleHeight = 40.0f + (rand() % 20); // 40-60px
             m_gameObjects.push_back(
-                std::make_unique<GameObject>(x + 50.0f, 550.0f - obstacleHeight, 25.0f, obstacleHeight, Color{120, 80, 60, 255})
+                std::make_unique<GameObject>(x + 50.0f, 550.0f - obstacleHeight, 20.0f, obstacleHeight, Color{120, 80, 60, 255})
             );
         }
         
-        // Add variety platforms occasionally
-        if (i % 3 == 1) {
+        // Add variety platforms occasionally (LESS FREQUENTLY)
+        if (i % 4 == 1) {  // Changed from i % 3 == 1
             m_gameObjects.push_back(
                 std::make_unique<Platform>(x + 70.0f, y - 70.0f, 90.0f, Color{150, 200, 150, 255})
             );
@@ -546,6 +552,31 @@ void Game::resetPlayer() {
     m_invulnerabilityTimer = 2.0f; // Give invulnerability after respawn
 }
 
+void Game::restartGame() {
+    if (!m_player) return;
+    
+    // Reset game state
+    m_gameOver = false;
+    m_player->resetLives();
+    m_player->resetDistance();
+    m_player->setPosition(100.0f, 300.0f);
+    m_player->setVelY(0.0f);
+    m_invulnerabilityTimer = 0.0f;
+    
+    // Clear birds
+    m_birds.clear();
+    m_birdSpawnTimer = 0.0f;
+    
+    // Reset world
+    m_worldWidth = 2000.0f;
+    m_cameraX = 0.0f;
+    m_gameObjects.clear();
+    m_groundGaps.clear();
+    
+    // Recreate level
+    createLevel();
+}
+
 void Game::renderUI() {
     if (!m_renderer || !m_player) return;
     
@@ -589,48 +620,79 @@ void Game::renderUI() {
     
     // Draw distance background
     SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 180);
-    SDL_Rect distanceBg = {SCREEN_WIDTH - 180, 15, 160, 40};
+    SDL_Rect distanceBg = {SCREEN_WIDTH - 200, 15, 180, 40};
     SDL_RenderFillRect(m_renderer, &distanceBg);
     
-    // Draw distance label (simple block style)
-    SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
-    SDL_Rect labelRect = {SCREEN_WIDTH - 170, 20, 10, 10};
-    SDL_RenderFillRect(m_renderer, &labelRect); // D
-    labelRect.x += 15;
-    SDL_RenderFillRect(m_renderer, &labelRect);
+    // Draw distance label and number as text-like display
+    SDL_SetRenderDrawColor(m_renderer, 0, 255, 0, 255); // Green for distance
     
-    // Draw distance numbers as simple rectangles (each digit)
-    SDL_SetRenderDrawColor(m_renderer, 0, 255, 0, 255); // Green for numbers
-    int numberX = SCREEN_WIDTH - 140;
-    int numberY = 32;
-    
-    // Simple number display (draw bars based on digits)
+    // Simple number display - draw the distance as blocks
     char distStr[20];
-    snprintf(distStr, sizeof(distStr), "%dm", distanceMeters);
-    for (int i = 0; distStr[i] != '\0' && i < 10; i++) {
-        SDL_Rect charRect = {numberX + i * 12, numberY, 10, 15};
+    snprintf(distStr, sizeof(distStr), "DIST:%d", distanceMeters);
+    
+    // Draw each character as simple blocks
+    int charX = SCREEN_WIDTH - 190;
+    int charY = 25;
+    for (int i = 0; distStr[i] != '\0' && i < 15; i++) {
+        // Simple block representation of characters
+        SDL_Rect charRect = {charX + i * 11, charY, 9, 15};
         SDL_RenderFillRect(m_renderer, &charRect);
     }
     
     // Render GAME OVER message if game is over
     if (m_gameOver) {
         // Draw semi-transparent overlay
-        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 180);
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 200);
         SDL_Rect overlay = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(m_renderer, &overlay);
         
-        // Draw GAME OVER text (simple block letters)
+        // Draw GAME OVER box
         SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
-        
-        // Large rectangle for GAME OVER text background
-        SDL_Rect textBg = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 - 60, 400, 120};
-        SDL_RenderFillRect(m_renderer, &textBg);
+        SDL_Rect gameOverBg = {SCREEN_WIDTH/2 - 220, SCREEN_HEIGHT/2 - 120, 440, 100};
+        SDL_RenderFillRect(m_renderer, &gameOverBg);
         
         SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
-        SDL_Rect textInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 - 55, 390, 110};
-        SDL_RenderFillRect(m_renderer, &textInner);
+        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 215, SCREEN_HEIGHT/2 - 115, 430, 90};
+        SDL_RenderFillRect(m_renderer, &gameOverInner);
         
-        // Note: Proper text rendering would require SDL_ttf
-        // For now, this provides a clear visual indicator
+        // Draw final distance box
+        SDL_SetRenderDrawColor(m_renderer, 100, 100, 255, 255);
+        SDL_Rect distanceBg2 = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 - 40, 400, 50};
+        SDL_RenderFillRect(m_renderer, &distanceBg2);
+        
+        SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
+        SDL_Rect distanceInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 - 35, 390, 40};
+        SDL_RenderFillRect(m_renderer, &distanceInner);
+        
+        // Draw final distance text
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 255, 255);
+        char finalDistStr[30];
+        snprintf(finalDistStr, sizeof(finalDistStr), "FINAL DISTANCE: %d", distanceMeters);
+        
+        int textX = SCREEN_WIDTH/2 - 180;
+        int textY = SCREEN_HEIGHT/2 - 25;
+        for (int i = 0; finalDistStr[i] != '\0' && i < 25; i++) {
+            SDL_Rect charRect = {textX + i * 9, textY, 8, 12};
+            SDL_RenderFillRect(m_renderer, &charRect);
+        }
+        
+        // Draw "INSERT COIN FOR NEW GAME" message
+        SDL_SetRenderDrawColor(m_renderer, 255, 200, 0, 255); // Gold color
+        SDL_Rect coinBg = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 + 40, 400, 50};
+        SDL_RenderFillRect(m_renderer, &coinBg);
+        
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+        SDL_Rect coinInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 + 45, 390, 40};
+        SDL_RenderFillRect(m_renderer, &coinInner);
+        
+        // Draw coin message text
+        SDL_SetRenderDrawColor(m_renderer, 255, 200, 0, 255);
+        const char* coinMsg = "INSERT COIN FOR A NEW GAME";
+        int msgX = SCREEN_WIDTH/2 - 190;
+        int msgY = SCREEN_HEIGHT/2 + 55;
+        for (int i = 0; coinMsg[i] != '\0' && i < 25; i++) {
+            SDL_Rect charRect = {msgX + i * 9, msgY, 8, 12};
+            SDL_RenderFillRect(m_renderer, &charRect);
+        }
     }
 }
