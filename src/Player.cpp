@@ -40,16 +40,8 @@ void Player::update(float deltaTime) {
     m_x += m_velX * deltaTime;
     m_y += m_velY * deltaTime;
     
-    // Simple ground collision
-    if (m_y + m_height > 550.0f) {
-        m_y = 550.0f - m_height;
-        m_velY = 0.0f;
-        m_isGrounded = true;
-    }
-    
-    // Simple screen boundaries
+    // Only prevent going off the left edge of the world
     if (m_x < 0) m_x = 0;
-    if (m_x + m_width > 800) m_x = 800 - m_width;
 }
 
 void Player::render(SDL_Renderer* renderer) const {

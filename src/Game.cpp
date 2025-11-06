@@ -212,8 +212,8 @@ void Game::update(float deltaTime) {
             
             // Check if player is standing on or landing on platform
             // More lenient check: player's bottom is within range of platform top
-            if (playerBottom >= platformTop - 2.0f && 
-                playerBottom <= platformTop + 10.0f &&
+            if (playerBottom >= platformTop - 5.0f && 
+                playerBottom <= platformTop + 15.0f &&
                 playerRight > platformLeft + 2.0f && 
                 playerLeft < platformRight - 2.0f) {
                 
@@ -253,10 +253,11 @@ void Game::update(float deltaTime) {
     }
     
     // Ground collision (only if not on a platform)
-    if (!onGround && playerBottom > 550.0f) {
+    if (!onGround && playerBottom >= 545.0f) {
         m_player->setPosition(m_player->getX(), 550.0f - m_player->getHeight());
         m_player->setGrounded(true);
         m_player->setVelY(0.0f);
+        onGround = true;
     }
     
     // Update camera to follow player
