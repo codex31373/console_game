@@ -268,36 +268,39 @@ void Game::update(float deltaTime) {
     // Reset grounded state - will be set to true if standing on something
     m_player->setGrounded(false);
     
-    // Check for platform collisions
+    // Check for platform and ground collisions
     bool onGround = false;
     float playerBottom = m_player->getY() + m_player->getHeight();
     float playerLeft = m_player->getX();
     float playerRight = m_player->getX() + m_player->getWidth();
     
     for (const auto& obj : m_gameObjects) {
-        // Check collision with platforms
-        if (auto platform = dynamic_cast<Platform*>(obj.get())) {
-            float platformTop = platform->getY();
-            float platformLeft = platform->getX();
-            float platformRight = platform->getX() + platform->getWidth();
+        // Check collision with platforms and ground segments
+        float objectTop = obj->getY();
+        float objectLeft = obj->getX();
+        float objectRight = obj->getX() + obj->getWidth();
+        float objectBottom = obj->getY() + obj->getHeight();
+        
+        // Check if this is a ground segment (wide, flat object near the bottom of the screen)
+        bool isGroundSegment = (objectTop >= 540.0f && objectTop <= 560.0f && 
+                              objectBottom > 550.0f && obj->getWidth() > 100.0f);
+        
+        // Check if player is standing on or landing on platform/ground
+        if ((dynamic_cast<Platform*>(obj.get()) || isGroundSegment) &&
+            playerBottom >= objectTop - 5.0f && 
+            playerBottom <= objectTop + 15.0f &&
+            playerRight > objectLeft + 2.0f && 
+            playerLeft < objectRight - 2.0f) {
             
-            // Check if player is standing on or landing on platform
-            // More lenient check: player's bottom is within range of platform top
-            if (playerBottom >= platformTop - 5.0f && 
-                playerBottom <= platformTop + 15.0f &&
-                playerRight > platformLeft + 2.0f && 
-                playerLeft < platformRight - 2.0f) {
-                
-                // Snap player to top of platform
-                m_player->setPosition(m_player->getX(), platformTop - m_player->getHeight());
-                m_player->setGrounded(true);
-                // Reset vertical velocity to prevent falling through
-                if (m_player->getVelY() > 0.0f) {
-                    m_player->setVelY(0.0f);
-                }
-                onGround = true;
-                break;
+            // Snap player to top of platform/ground
+            m_player->setPosition(m_player->getX(), objectTop - m_player->getHeight());
+            m_player->setGrounded(true);
+            // Reset vertical velocity to prevent falling through
+            if (m_player->getVelY() > 0.0f) {
+                m_player->setVelY(0.0f);
             }
+            onGround = true;
+            break;
         }
         // Check collision with vertical platforms (walls) - but skip the ground
         else if (auto wall = dynamic_cast<GameObject*>(obj.get())) {
@@ -395,8 +398,10 @@ void Game::generateMorePlatformsIfNeeded() {
         currentX += segmentWidth;
         
         // Add gap frequently (50% chance) but keep jumpable
+        // Minimum gap width is 1.5x player width (60.0f)
         if (rand() % 2 == 0) {
-            float gapWidth = 60.0f + (rand() % 50); // 60-110px (always crossable)
+            float minGapWidth = 60.0f; // 1.5 * player width (40.0f)
+            float gapWidth = minGapWidth + (rand() % 50); // Gap width 60-110 (always crossable)
             m_groundGaps.push_back({currentX, gapWidth});
             currentX += gapWidth;
         }
