@@ -6,6 +6,7 @@
 #include <memory>
 #include "GameObject.hpp"
 #include "Player.hpp"
+#include "Stair.hpp"
 
 class Game {
 public:
@@ -26,6 +27,7 @@ private:
     void render();
     
     void createLevel();
+    void generateMorePlatformsIfNeeded();
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
@@ -35,7 +37,8 @@ private:
     std::vector<std::unique_ptr<GameObject>> m_gameObjects;
     std::unique_ptr<Player> m_player;
     
-    // Camera offset for scrolling
+    // World and camera properties
+    float m_worldWidth = 2000.0f;
     float m_cameraX = 0.0f;
     float m_cameraY = 0.0f;
 };

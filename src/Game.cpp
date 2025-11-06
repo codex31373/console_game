@@ -1,12 +1,19 @@
 #include "Game.hpp"
 #include "GameObject.hpp"
 #include "Player.hpp"
+#include "Platform.hpp"
 #include "Common.hpp"
 #include <iostream>
 #include <memory>
 #include <cstdlib>  // For rand()
 
-Game::Game() = default;
+Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_worldWidth(2000.0f), m_cameraX(0.0f), m_cameraY(0.0f) {
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        return;
+    }
+}
 
 Game::~Game() {
     shutdown();
@@ -58,25 +65,57 @@ void Game::createLevel() {
     // Create ground
     auto ground = std::make_unique<GameObject>(
         0.0f, 550.0f,
-        static_cast<float>(SCREEN_WIDTH), 50.0f,
+        static_cast<float>(SCREEN_WIDTH * 3),  // Extend ground
+        50.0f,
         Color{0, 128, 0, 255}  // Green ground
     );
     m_gameObjects.push_back(std::move(ground));
 
-    // Create some platforms
-    auto platform1 = std::make_unique<GameObject>(
-        200.0f, 400.0f,
-        200.0f, 20.0f,
-        Color{100, 100, 255, 255}  // Blue platform
-    );
-    m_gameObjects.push_back(std::move(platform1));
-
-    auto platform2 = std::make_unique<GameObject>(
-        500.0f, 300.0f,
-        200.0f, 20.0f,
-        Color{100, 100, 255, 255}  // Blue platform
-    );
-    m_gameObjects.push_back(std::move(platform2));
+    // Create a series of platforms at different heights
+    const int numPlatforms = 15;
+    const float startX = 100.0f;
+    const float platformSpacing = 150.0f;
+    const float platformWidth = 100.0f;
+    
+    // Create platforms in a wave-like pattern
+    for (int i = 0; i < numPlatforms; ++i) {
+        float x = startX + i * platformSpacing;
+        // Create a wave pattern for the y-coordinate
+        float y = 450.0f - 50.0f * std::sin(i * 0.7f);
+        
+        // Random platform color
+        Color color = {
+            static_cast<Uint8>(100 + rand() % 156),  // R: 100-255
+            static_cast<Uint8>(100 + rand() % 156),  // G: 100-255
+            static_cast<Uint8>(100 + rand() % 156),  // B: 100-255
+            255
+        };
+        
+        auto platform = std::make_unique<Platform>(x, y, platformWidth, color);
+        m_gameObjects.push_back(std::move(platform));
+    }
+    
+    // Add some vertical platforms for climbing
+    for (int i = 0; i < 5; ++i) {
+        float x = 400.0f + i * 200.0f;
+        float height = 100.0f + (i % 3) * 50.0f;
+        
+        // Vertical platform
+        auto vPlatform = std::make_unique<GameObject>(
+            x, 550.0f - height,
+            30.0f, height,
+            Color{150, 75, 0, 255}  // Brown for vertical platforms
+        );
+        m_gameObjects.push_back(std::move(vPlatform));
+        
+        // Small platform on top
+        auto topPlatform = std::make_unique<Platform>(
+            x - 50.0f, 550.0f - height - 20.0f,
+            130.0f,
+            Color{100, 100, 255, 255}  // Blue for top platforms
+        );
+        m_gameObjects.push_back(std::move(topPlatform));
+    }
 }
 
 void Game::run() {
@@ -145,30 +184,119 @@ bool Game::handleInput(const SDL_Event& event) {
 }
 
 void Game::update(float deltaTime) {
-    // Update player
-    if (m_player) {
-        m_player->update(deltaTime);
-        
-        // Simple camera follow - center on player
-        m_cameraX = m_player->getX() - SCREEN_WIDTH / 2.0f;
-        m_cameraX = std::max(0.0f, std::min(m_cameraX, 800.0f - SCREEN_WIDTH));
-        
-        // Apply camera offset to all objects
-        for (auto& obj : m_gameObjects) {
-            obj->setCameraOffset(m_cameraX, 0);
+    if (!m_player) return;
+
+    // Check if we need to generate more platforms
+    if (m_player->getX() > m_worldWidth - 1000.0f) {
+        generateMorePlatformsIfNeeded();
+    }
+
+    // Update player first
+    m_player->update(deltaTime);
+    
+    // Reset grounded state - will be set to true if standing on something
+    m_player->setGrounded(false);
+    
+    // Check for platform collisions
+    bool onGround = false;
+    float playerBottom = m_player->getY() + m_player->getHeight();
+    float playerLeft = m_player->getX();
+    float playerRight = m_player->getX() + m_player->getWidth();
+    
+    for (const auto& obj : m_gameObjects) {
+        // Check collision with platforms
+        if (auto platform = dynamic_cast<Platform*>(obj.get())) {
+            float platformTop = platform->getY();
+            float platformLeft = platform->getX();
+            float platformRight = platform->getX() + platform->getWidth();
+            
+            // Check if player is standing on or landing on platform
+            // More lenient check: player's bottom is within range of platform top
+            if (playerBottom >= platformTop - 2.0f && 
+                playerBottom <= platformTop + 10.0f &&
+                playerRight > platformLeft + 2.0f && 
+                playerLeft < platformRight - 2.0f) {
+                
+                // Snap player to top of platform
+                m_player->setPosition(m_player->getX(), platformTop - m_player->getHeight());
+                m_player->setGrounded(true);
+                // Reset vertical velocity to prevent falling through
+                if (m_player->getVelY() > 0.0f) {
+                    m_player->setVelY(0.0f);
+                }
+                onGround = true;
+                break;
+            }
         }
-        m_player->setCameraOffset(m_cameraX, 0);
-        
-        // Simple collision with ground (y=550 is ground level)
-        if (m_player->getY() + m_player->getHeight() > 550.0f) {
-            m_player->setPosition(m_player->getX(), 550.0f - m_player->getHeight());
-            m_player->setGrounded(true);
+        // Check collision with vertical platforms (walls) - but skip the ground
+        else if (auto wall = dynamic_cast<GameObject*>(obj.get())) {
+            // Only treat as wall if height > width AND it's not the ground (ground is very wide)
+            if (wall->getHeight() > wall->getWidth() && wall->getWidth() < 100.0f) {
+                float wallLeft = wall->getX();
+                float wallRight = wall->getX() + wall->getWidth();
+                float wallTop = wall->getY();
+                float wallBottom = wall->getY() + wall->getHeight();
+                
+                // Only check wall collision if player is within the vertical bounds
+                if (playerBottom > wallTop + 5.0f && m_player->getY() < wallBottom - 5.0f) {
+                    // Check for left side collision (player moving right into wall)
+                    if (playerRight > wallLeft && playerRight < wallLeft + 15.0f) {
+                        m_player->setPosition(wallLeft - m_player->getWidth(), m_player->getY());
+                    }
+                    // Check for right side collision (player moving left into wall)
+                    else if (playerLeft < wallRight && playerLeft > wallRight - 15.0f) {
+                        m_player->setPosition(wallRight, m_player->getY());
+                    }
+                }
+            }
         }
     }
+    
+    // Ground collision (only if not on a platform)
+    if (!onGround && playerBottom > 550.0f) {
+        m_player->setPosition(m_player->getX(), 550.0f - m_player->getHeight());
+        m_player->setGrounded(true);
+        m_player->setVelY(0.0f);
+    }
+    
+    // Update camera to follow player
+    m_cameraX = m_player->getX() - SCREEN_WIDTH / 2.0f;
+    m_cameraX = std::max(0.0f, std::min(m_cameraX, m_worldWidth - SCREEN_WIDTH));    
+    // Apply camera offset to all objects and player
+    for (auto& obj : m_gameObjects) {
+        obj->setCameraOffset(m_cameraX, 0);
+    }
+    m_player->setCameraOffset(m_cameraX, 0);
     
     // Update other game objects
     for (auto& obj : m_gameObjects) {
         obj->update(deltaTime);
+    }
+}
+
+void Game::generateMorePlatformsIfNeeded() {
+    float currentEnd = m_worldWidth;
+    m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
+    
+    // Extend the ground
+    m_gameObjects[0] = std::make_unique<GameObject>(0.0f, 550.0f, m_worldWidth, 50.0f, Color{139, 69, 19, 255});
+    
+    // Generate new platforms in the extended area
+    for (int i = 0; i < 10; ++i) {
+        float x = currentEnd + i * 150.0f;
+        float y = 400.0f + 100.0f * sin((currentEnd + i * 150.0f) * 0.01f);
+        m_gameObjects.push_back(std::make_unique<Platform>(x, y, 100.0f));
+        
+        // Add some vertical walls with platforms occasionally
+        if (i % 3 == 0) {
+            float wallHeight = 200.0f + (rand() % 100);
+            m_gameObjects.push_back(
+                std::make_unique<GameObject>(x + 50.0f, 550.0f - wallHeight, 30.0f, wallHeight, Color{100, 100, 100, 255})
+            );
+            m_gameObjects.push_back(
+                std::make_unique<Platform>(x + 80.0f, 550.0f - wallHeight - 30.0f, 100.0f)
+            );
+        }
     }
 }
 

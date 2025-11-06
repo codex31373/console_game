@@ -26,8 +26,12 @@ public:
         m_cameraOffsetY = y; 
     }
     
-    // Grounded state
+    // Movement states
     void setGrounded(bool grounded) { m_isGrounded = grounded; }
+    bool isClimbing() const { return m_isClimbing; }
+    void setClimbing(bool climbing) { m_isClimbing = climbing; }
+    float getVelY() const { return m_velY; }
+    void setVelY(float velY) { m_velY = velY; }
     
 private:
     // Position and size
@@ -37,8 +41,10 @@ private:
     // Physics
     float m_velX = 0, m_velY = 0;
     float m_speed = 200.0f;
+    float m_climbSpeed = 150.0f;
     float m_jumpForce = -400.0f;
     bool m_isGrounded = false;
+    bool m_isClimbing = false;
     
     // Rendering
     Color m_color;

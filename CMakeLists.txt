@@ -12,12 +12,15 @@ set(SOURCES
     src/Game.cpp
     src/GameObject.cpp
     src/Player.cpp
+    src/Platform.cpp
 )
 
 set(HEADERS
     src/Game.hpp
     src/GameObject.hpp
     src/Player.hpp
+    src/Platform.hpp
+    src/Common.hpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})

@@ -16,17 +16,25 @@ void Player::handleInput(const Uint8* keyState) {
         m_velX = m_speed;
     }
     
-    // Jumping
-    if ((keyState[SDL_SCANCODE_UP] || keyState[SDL_SCANCODE_W] || keyState[SDL_SCANCODE_SPACE]) && m_isGrounded) {
+    // Jumping (only when not climbing and on ground)
+    if ((keyState[SDL_SCANCODE_UP] || keyState[SDL_SCANCODE_W] || keyState[SDL_SCANCODE_SPACE]) && m_isGrounded && !m_isClimbing) {
         m_velY = m_jumpForce;
         m_isGrounded = false;
     }
 }
 
 void Player::update(float deltaTime) {
-    // Apply gravity
+    // Apply gravity if not climbing
     const float gravity = 800.0f;
-    m_velY += gravity * deltaTime;
+    if (!m_isClimbing) {
+        m_velY += gravity * deltaTime;
+    } else {
+        // Climbing movement
+        m_velY = 0;
+        if (m_velX != 0) {  // If moving horizontally while climbing
+            m_y -= m_climbSpeed * 0.5f * deltaTime;  // Move up slightly when climbing diagonally
+        }
+    }
     
     // Update position
     m_x += m_velX * deltaTime;
