@@ -33,6 +33,23 @@ public:
     float getVelY() const { return m_velY; }
     void setVelY(float velY) { m_velY = velY; }
     
+    // Life system
+    int getLives() const { return m_lives; }
+    void loseLife() { if (m_lives > 0) m_lives--; }
+    void resetLives() { m_lives = 3; }
+    bool isAlive() const { return m_lives > 0; }
+    
+    // Distance tracking
+    float getDistanceTraveled() const { return m_distanceTraveled; }
+    void updateDistance(float deltaX) { if (deltaX > 0) m_distanceTraveled += deltaX; }
+    void resetDistance() { m_distanceTraveled = 0.0f; }
+    
+    // Knockback for collision
+    void applyKnockback(float forceX, float forceY) {
+        m_velX = forceX;
+        m_velY = forceY;
+    }
+    
     // Animation states
     enum class AnimationState {
         IDLE,
@@ -63,6 +80,12 @@ private:
     AnimationState m_animState = AnimationState::IDLE;
     float m_animationTime = 0.0f;
     bool m_facingRight = true;
+    
+    // Life system
+    int m_lives = 3;
+    
+    // Distance tracking
+    float m_distanceTraveled = 0.0f;
 };
 
 #endif // PLAYER_HPP

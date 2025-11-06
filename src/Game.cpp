@@ -64,14 +64,43 @@ bool Game::initialize() {
 }
 
 void Game::createLevel() {
-    // Create ground
-    auto ground = std::make_unique<GameObject>(
-        0.0f, 550.0f,
-        static_cast<float>(SCREEN_WIDTH * 3),  // Extend ground
-        50.0f,
-        Color{0, 128, 0, 255}  // Green ground
-    );
-    m_gameObjects.push_back(std::move(ground));
+    // Create ground with gaps
+    float groundY = 550.0f;
+    float currentX = 0.0f;
+    float worldEnd = static_cast<float>(SCREEN_WIDTH * 3);
+    
+    // Create ground segments with gaps (MORE FREQUENT, but always crossable)
+    for (int i = 0; i < 12; i++) {
+        float segmentWidth = 180.0f + (rand() % 150); // Shorter segments = more gaps
+        
+        // Create ground segment
+        auto groundSegment = std::make_unique<GameObject>(
+            currentX, groundY,
+            segmentWidth, 50.0f,
+            Color{0, 128, 0, 255}
+        );
+        m_gameObjects.push_back(std::move(groundSegment));
+        
+        currentX += segmentWidth;
+        
+        // Add gaps MORE FREQUENTLY but keep them jumpable (max 120 pixels)
+        // Player can jump about 140-150 pixels horizontally
+        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 3 != 0) { // 66% chance of gap
+            float gapWidth = 70.0f + (rand() % 45); // Gap width 70-115 (always crossable)
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+        }
+    }
+    
+    // Fill remaining ground
+    if (currentX < worldEnd) {
+        auto groundSegment = std::make_unique<GameObject>(
+            currentX, groundY,
+            worldEnd - currentX, 50.0f,
+            Color{0, 128, 0, 255}
+        );
+        m_gameObjects.push_back(std::move(groundSegment));
+    }
 
     // Create a series of platforms at different heights
     const int numPlatforms = 15;
@@ -97,37 +126,39 @@ void Game::createLevel() {
         m_gameObjects.push_back(std::move(platform));
     }
     
-    // Add some vertical obstacles with stepping stones
-    for (int i = 0; i < 5; ++i) {
-        float x = 400.0f + i * 250.0f;
-        // Reduced height: 60-90 pixels (jumpable range)
-        float height = 60.0f + (i % 3) * 15.0f;
+    // Add some platforms and FEWER obstacles
+    for (int i = 0; i < 8; ++i) {
+        float x = 300.0f + i * 280.0f;
         
-        // Vertical obstacle (shorter and less frequent)
-        if (i % 2 == 0) {
+        // Add small obstacle LESS FREQUENTLY (only 30% chance)
+        if (i > 1 && rand() % 10 < 3) {
+            float height = 50.0f + (rand() % 30); // Small obstacles 50-80px
             auto vPlatform = std::make_unique<GameObject>(
                 x, 550.0f - height,
                 25.0f, height,
-                Color{150, 75, 0, 255}  // Brown for vertical obstacles
+                Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(vPlatform));
         }
         
-        // Multiple stepping stone platforms for easier traversal
-        auto midPlatform = std::make_unique<Platform>(
-            x - 80.0f, 480.0f,
-            100.0f,
-            Color{200, 150, 100, 255}  // Light brown
-        );
-        m_gameObjects.push_back(std::move(midPlatform));
+        // Add platforms at various heights for navigation
+        if (i % 2 == 1) {
+            auto midPlatform = std::make_unique<Platform>(
+                x - 60.0f, 480.0f,
+                110.0f,
+                Color{200, 150, 100, 255}
+            );
+            m_gameObjects.push_back(std::move(midPlatform));
+        }
         
-        // Higher platform
-        auto topPlatform = std::make_unique<Platform>(
-            x + 40.0f, 420.0f,
-            100.0f,
-            Color{100, 100, 255, 255}  // Blue for top platforms
-        );
-        m_gameObjects.push_back(std::move(topPlatform));
+        if (i % 3 == 0) {
+            auto topPlatform = std::make_unique<Platform>(
+                x + 50.0f, 400.0f,
+                100.0f,
+                Color{100, 100, 255, 255}
+            );
+            m_gameObjects.push_back(std::move(topPlatform));
+        }
     }
 }
 
@@ -198,6 +229,17 @@ bool Game::handleInput(const SDL_Event& event) {
 
 void Game::update(float deltaTime) {
     if (!m_player) return;
+    
+    // Check for game over
+    if (m_gameOver) {
+        // Wait for restart input
+        return;
+    }
+    
+    // Update invulnerability timer
+    if (m_invulnerabilityTimer > 0.0f) {
+        m_invulnerabilityTimer -= deltaTime;
+    }
 
     // Check if we need to generate more platforms
     if (m_player->getX() > m_worldWidth - 1000.0f) {
@@ -275,12 +317,38 @@ void Game::update(float deltaTime) {
         }
     }
     
-    // Ground collision (only if not on a platform)
+    // Check if player fell into a gap BEFORE ground collision
+    bool inGap = false;
     if (!onGround && playerBottom >= 545.0f) {
+        float playerCenterX = m_player->getX() + m_player->getWidth() / 2.0f;
+        for (const auto& gap : m_groundGaps) {
+            if (playerCenterX >= gap.x && playerCenterX <= gap.x + gap.width) {
+                inGap = true;
+                break;
+            }
+        }
+    }
+    
+    // Ground collision (only if not on a platform and not in a gap)
+    if (!onGround && !inGap && playerBottom >= 545.0f) {
         m_player->setPosition(m_player->getX(), 550.0f - m_player->getHeight());
         m_player->setGrounded(true);
         m_player->setVelY(0.0f);
         onGround = true;
+    }
+    
+    // If player is in gap and falling, check if they've fallen far enough
+    if (inGap && playerBottom > 650.0f) {
+        // Player has fallen into gap
+        m_player->loseLife();
+        std::cout << "Fell into a gap! Lives remaining: " << m_player->getLives() << std::endl;
+        
+        if (!m_player->isAlive()) {
+            m_gameOver = true;
+            std::cout << "GAME OVER!" << std::endl;
+        } else {
+            resetPlayer();
+        }
     }
     
     // Update camera to follow player
@@ -305,36 +373,49 @@ void Game::generateMorePlatformsIfNeeded() {
     float currentEnd = m_worldWidth;
     m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
     
-    // Extend the ground
-    m_gameObjects[0] = std::make_unique<GameObject>(0.0f, 550.0f, m_worldWidth, 50.0f, Color{139, 69, 19, 255});
+    // Add new ground segments with MORE FREQUENT gaps
+    float currentX = currentEnd;
+    for (int i = 0; i < 5; i++) {
+        float segmentWidth = 170.0f + (rand() % 140);
+        
+        // Create ground segment
+        auto groundSegment = std::make_unique<GameObject>(
+            currentX, 550.0f,
+            segmentWidth, 50.0f,
+            Color{139, 69, 19, 255}
+        );
+        m_gameObjects.push_back(std::move(groundSegment));
+        
+        currentX += segmentWidth;
+        
+        // Add gap frequently (70% chance) but keep jumpable
+        if (rand() % 10 < 7) {
+            float gapWidth = 70.0f + (rand() % 45); // 70-115px (always crossable)
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+        }
+    }
     
-    // Generate new platforms in the extended area with better progression
-    for (int i = 0; i < 12; ++i) {
-        float x = currentEnd + i * 140.0f;
-        // Gentler wave pattern with lower amplitude
-        float y = 460.0f - 60.0f * sin((currentEnd + i * 140.0f) * 0.008f);
+    // Generate new platforms with FEWER obstacles
+    for (int i = 0; i < 10; ++i) {
+        float x = currentEnd + i * 150.0f;
+        float y = 460.0f - 50.0f * sin((currentEnd + i * 150.0f) * 0.008f);
         
         // Main platform
         m_gameObjects.push_back(std::make_unique<Platform>(x, y, 110.0f));
         
-        // Add obstacles and variety occasionally
-        if (i % 4 == 0) {
-            // Small jumpable obstacle (60-80 pixels tall)
-            float obstacleHeight = 60.0f + (rand() % 21);
+        // Add obstacles LESS FREQUENTLY (only 20% chance)
+        if (i % 5 == 0 && rand() % 10 < 2) {
+            float obstacleHeight = 50.0f + (rand() % 25); // 50-75px
             m_gameObjects.push_back(
                 std::make_unique<GameObject>(x + 50.0f, 550.0f - obstacleHeight, 25.0f, obstacleHeight, Color{120, 80, 60, 255})
             );
-            
-            // Stepping stone to bypass obstacle
-            m_gameObjects.push_back(
-                std::make_unique<Platform>(x - 40.0f, 480.0f, 80.0f, Color{180, 140, 100, 255})
-            );
         }
         
-        // Add occasional higher platforms for variety
+        // Add variety platforms occasionally
         if (i % 3 == 1) {
             m_gameObjects.push_back(
-                std::make_unique<Platform>(x + 60.0f, y - 80.0f, 90.0f, Color{150, 200, 150, 255})
+                std::make_unique<Platform>(x + 70.0f, y - 70.0f, 90.0f, Color{150, 200, 150, 255})
             );
         }
     }
@@ -357,10 +438,20 @@ void Game::render() {
         }
     }
     
-    // Render player on top
+    // Render player on top (flash when invulnerable)
     if (m_player) {
-        m_player->render(m_renderer);
+        bool showPlayer = true;
+        if (m_invulnerabilityTimer > 0.0f) {
+            // Flash effect
+            showPlayer = (static_cast<int>(m_invulnerabilityTimer * 10) % 2 == 0);
+        }
+        if (showPlayer) {
+            m_player->render(m_renderer);
+        }
     }
+    
+    // Render UI (lives, game over, etc.)
+    renderUI();
 
     // Update screen
     SDL_RenderPresent(m_renderer);
@@ -399,7 +490,7 @@ void Game::updateBirds(float deltaTime) {
 }
 
 void Game::checkBirdCollisions() {
-    if (!m_player) return;
+    if (!m_player || m_invulnerabilityTimer > 0.0f) return;
     
     float playerLeft = m_player->getX();
     float playerRight = m_player->getX() + m_player->getWidth();
@@ -418,14 +509,128 @@ void Game::checkBirdCollisions() {
         if (playerRight > birdLeft && playerLeft < birdRight &&
             playerBottom > birdTop && playerTop < birdBottom) {
             
-            // Collision detected! Push player back and deactivate bird
+            // Collision detected! Apply knockback and lose life
             bird->setActive(false);
             
-            // Push player back slightly
-            m_player->setPosition(m_player->getX() - 50.0f, m_player->getY());
+            // Apply strong knockback - set velocity directly
+            m_player->setVelY(-250.0f); // Push up
+            m_player->setGrounded(false); // Make sure player can be knocked back
             
-            // Optional: Add visual feedback or sound here
-            std::cout << "Bird collision! " << std::endl;
+            // Push player back horizontally
+            float pushBackDistance = 80.0f;
+            m_player->setPosition(m_player->getX() - pushBackDistance, m_player->getY());
+            
+            // Lose a life
+            m_player->loseLife();
+            m_invulnerabilityTimer = 1.5f; // 1.5 seconds invulnerability
+            
+            std::cout << "Bird collision! Lives remaining: " << m_player->getLives() << std::endl;
+            
+            // Check for game over
+            if (!m_player->isAlive()) {
+                m_gameOver = true;
+                std::cout << "GAME OVER!" << std::endl;
+            }
+            
+            break; // Only process one collision per frame
         }
+    }
+}
+
+void Game::resetPlayer() {
+    if (!m_player) return;
+    
+    // Reset player to starting position
+    m_player->setPosition(100.0f, 300.0f);
+    m_player->setVelY(0.0f);
+    m_invulnerabilityTimer = 2.0f; // Give invulnerability after respawn
+}
+
+void Game::renderUI() {
+    if (!m_renderer || !m_player) return;
+    
+    // Render lives (hearts) in top-left corner
+    int lives = m_player->getLives();
+    SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red hearts
+    
+    for (int i = 0; i < lives; i++) {
+        int heartX = 20 + i * 40;
+        int heartY = 20;
+        int heartSize = 25;
+        
+        // Draw a simple heart shape (two circles and a triangle)
+        SDL_Rect leftCircle = {heartX, heartY, heartSize/2, heartSize/2};
+        SDL_Rect rightCircle = {heartX + heartSize/2, heartY, heartSize/2, heartSize/2};
+        SDL_RenderFillRect(m_renderer, &leftCircle);
+        SDL_RenderFillRect(m_renderer, &rightCircle);
+        
+        // Triangle bottom
+        for (int y = 0; y < heartSize/2; y++) {
+            SDL_RenderDrawLine(m_renderer, 
+                heartX + y/2, heartY + heartSize/2 + y,
+                heartX + heartSize - y/2, heartY + heartSize/2 + y);
+        }
+    }
+    
+    // Draw empty hearts for lost lives
+    SDL_SetRenderDrawColor(m_renderer, 100, 100, 100, 255); // Gray
+    for (int i = lives; i < 3; i++) {
+        int heartX = 20 + i * 40;
+        int heartY = 20;
+        int heartSize = 25;
+        
+        SDL_Rect outline = {heartX, heartY, heartSize, heartSize};
+        SDL_RenderDrawRect(m_renderer, &outline);
+    }
+    
+    // Draw distance traveled in top-right corner
+    float distance = m_player->getDistanceTraveled();
+    int distanceMeters = static_cast<int>(distance / 10.0f); // Convert pixels to "meters"
+    
+    // Draw distance background
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 180);
+    SDL_Rect distanceBg = {SCREEN_WIDTH - 180, 15, 160, 40};
+    SDL_RenderFillRect(m_renderer, &distanceBg);
+    
+    // Draw distance label (simple block style)
+    SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
+    SDL_Rect labelRect = {SCREEN_WIDTH - 170, 20, 10, 10};
+    SDL_RenderFillRect(m_renderer, &labelRect); // D
+    labelRect.x += 15;
+    SDL_RenderFillRect(m_renderer, &labelRect);
+    
+    // Draw distance numbers as simple rectangles (each digit)
+    SDL_SetRenderDrawColor(m_renderer, 0, 255, 0, 255); // Green for numbers
+    int numberX = SCREEN_WIDTH - 140;
+    int numberY = 32;
+    
+    // Simple number display (draw bars based on digits)
+    char distStr[20];
+    snprintf(distStr, sizeof(distStr), "%dm", distanceMeters);
+    for (int i = 0; distStr[i] != '\0' && i < 10; i++) {
+        SDL_Rect charRect = {numberX + i * 12, numberY, 10, 15};
+        SDL_RenderFillRect(m_renderer, &charRect);
+    }
+    
+    // Render GAME OVER message if game is over
+    if (m_gameOver) {
+        // Draw semi-transparent overlay
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 180);
+        SDL_Rect overlay = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        SDL_RenderFillRect(m_renderer, &overlay);
+        
+        // Draw GAME OVER text (simple block letters)
+        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
+        
+        // Large rectangle for GAME OVER text background
+        SDL_Rect textBg = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 - 60, 400, 120};
+        SDL_RenderFillRect(m_renderer, &textBg);
+        
+        SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
+        SDL_Rect textInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 - 55, 390, 110};
+        SDL_RenderFillRect(m_renderer, &textInner);
+        
+        // Note: Proper text rendering would require SDL_ttf
+        // For now, this provides a clear visual indicator
     }
 }

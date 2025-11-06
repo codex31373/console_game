@@ -32,6 +32,8 @@ private:
     void spawnBirds();
     void updateBirds(float deltaTime);
     void checkBirdCollisions();
+    void renderUI();
+    void resetPlayer();
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
@@ -50,6 +52,17 @@ private:
     // Bird spawning
     float m_birdSpawnTimer = 0.0f;
     float m_birdSpawnInterval = 3.0f;
+    
+    // Ground gaps (position and width)
+    struct Gap {
+        float x;
+        float width;
+    };
+    std::vector<Gap> m_groundGaps;
+    
+    // Game state
+    bool m_gameOver = false;
+    float m_invulnerabilityTimer = 0.0f;
 };
 
 #endif // GAME_HPP

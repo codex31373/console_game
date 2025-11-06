@@ -37,9 +37,15 @@ void Player::update(float deltaTime) {
         }
     }
     
-    // Update position
+    // Update position and track distance
+    float oldX = m_x;
     m_x += m_velX * deltaTime;
     m_y += m_velY * deltaTime;
+    
+    // Track distance traveled (only when moving right)
+    if (m_x > oldX) {
+        m_distanceTraveled += (m_x - oldX);
+    }
     
     // Only prevent going off the left edge of the world
     if (m_x < 0) m_x = 0;
@@ -66,90 +72,169 @@ void Player::render(SDL_Renderer* renderer) const {
     
     // Animation offsets
     int bodyOffsetY = 0;
-    int legOffset = 0;
+    float leftLegOffset = 0;
+    float rightLegOffset = 0;
+    float leftArmOffset = 0;
+    float rightArmOffset = 0;
     
-    // Calculate animation frame for running
+    // Calculate animation frame for running (more exaggerated and smoother)
     if (m_animState == AnimationState::RUNNING_LEFT || m_animState == AnimationState::RUNNING_RIGHT) {
-        legOffset = static_cast<int>(std::sin(m_animationTime * 10.0f) * 3);
-        bodyOffsetY = static_cast<int>(std::abs(std::sin(m_animationTime * 10.0f)) * 2);
+        // Smoother, more visible leg animation
+        float animPhase = m_animationTime * 8.0f; // Slower animation speed
+        leftLegOffset = std::sin(animPhase) * 12.0f; // Bigger leg movement
+        rightLegOffset = std::sin(animPhase + 3.14159f) * 12.0f; // Opposite phase
+        
+        // Arms swing opposite to legs (more visible)
+        leftArmOffset = std::sin(animPhase + 3.14159f) * 8.0f;
+        rightArmOffset = std::sin(animPhase) * 8.0f;
+        
+        // Subtle body bounce
+        bodyOffsetY = static_cast<int>(std::abs(std::sin(animPhase * 2.0f)) * 3);
     } else if (m_animState == AnimationState::JUMPING) {
-        bodyOffsetY = -5; // Stretched when jumping
+        bodyOffsetY = -4;
+        leftLegOffset = -8.0f; // Legs tucked up
+        rightLegOffset = -8.0f;
+        leftArmOffset = -10.0f; // Arms up
+        rightArmOffset = -10.0f;
     }
     
-    // Draw cat body
-    SDL_Rect bodyRect = {
-        screenX + 5,
-        screenY + 15 + bodyOffsetY,
-        static_cast<int>(m_width - 10),
-        static_cast<int>(m_height - 25)
-    };
+    // Draw cat body (oval/rounded)
     SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);
+    SDL_Rect bodyRect = {
+        screenX + 8,
+        screenY + 20 + bodyOffsetY,
+        static_cast<int>(m_width - 16),
+        static_cast<int>(m_height - 30)
+    };
     SDL_RenderFillRect(renderer, &bodyRect);
     
-    // Draw head
+    // Draw head (circular)
     SDL_Rect headRect = {
-        screenX + 8,
+        screenX + 6,
         screenY + 5 + bodyOffsetY,
-        static_cast<int>(m_width - 16),
-        20
+        28,
+        22
     };
     SDL_RenderFillRect(renderer, &headRect);
     
-    // Draw ears
+    // Draw ears (triangular)
     SDL_SetRenderDrawColor(renderer, m_color.r - 20, m_color.g - 20, m_color.b, m_color.a);
-    int earSize = 8;
-    SDL_Point leftEarPoints[] = {
-        {screenX + 10, screenY + 5 + bodyOffsetY},
-        {screenX + 10 - earSize/2, screenY + bodyOffsetY},
-        {screenX + 10 + earSize, screenY + 5 + bodyOffsetY}
-    };
-    SDL_RenderDrawLines(renderer, leftEarPoints, 3);
-    
-    SDL_Point rightEarPoints[] = {
-        {screenX + static_cast<int>(m_width) - 10 - earSize, screenY + 5 + bodyOffsetY},
-        {screenX + static_cast<int>(m_width) - 10 + earSize/2, screenY + bodyOffsetY},
-        {screenX + static_cast<int>(m_width) - 10, screenY + 5 + bodyOffsetY}
-    };
-    SDL_RenderDrawLines(renderer, rightEarPoints, 3);
+    // Left ear
+    for (int i = 0; i < 3; i++) {
+        SDL_RenderDrawLine(renderer, 
+            screenX + 10 + i, screenY + 5 + bodyOffsetY,
+            screenX + 5 + i, screenY + bodyOffsetY);
+        SDL_RenderDrawLine(renderer,
+            screenX + 10 + i, screenY + 5 + bodyOffsetY,
+            screenX + 15 + i, screenY + bodyOffsetY);
+    }
+    // Right ear
+    for (int i = 0; i < 3; i++) {
+        SDL_RenderDrawLine(renderer,
+            screenX + 25 + i, screenY + 5 + bodyOffsetY,
+            screenX + 20 + i, screenY + bodyOffsetY);
+        SDL_RenderDrawLine(renderer,
+            screenX + 25 + i, screenY + 5 + bodyOffsetY,
+            screenX + 30 + i, screenY + bodyOffsetY);
+    }
     
     // Draw eyes
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    int eyeY = screenY + 12 + bodyOffsetY;
-    int eyeSize = 4;
+    int eyeY = screenY + 13 + bodyOffsetY;
+    int leftEyeX = m_facingRight ? screenX + 13 : screenX + 11;
+    int rightEyeX = m_facingRight ? screenX + 23 : screenX + 21;
     
-    int leftEyeX = m_facingRight ? screenX + 15 : screenX + 12;
-    int rightEyeX = m_facingRight ? screenX + 25 : screenX + 22;
-    
-    SDL_Rect leftEye = {leftEyeX, eyeY, eyeSize, eyeSize};
-    SDL_Rect rightEye = {rightEyeX, eyeY, eyeSize, eyeSize};
+    SDL_Rect leftEye = {leftEyeX, eyeY, 5, 5};
+    SDL_Rect rightEye = {rightEyeX, eyeY, 5, 5};
     SDL_RenderFillRect(renderer, &leftEye);
     SDL_RenderFillRect(renderer, &rightEye);
     
     // Draw nose
-    SDL_SetRenderDrawColor(renderer, 255, 182, 193, 255); // Pink
-    SDL_Rect nose = {screenX + static_cast<int>(m_width/2) - 2, screenY + 18 + bodyOffsetY, 4, 3};
+    SDL_SetRenderDrawColor(renderer, 255, 182, 193, 255);
+    SDL_Rect nose = {screenX + 18, screenY + 20 + bodyOffsetY, 4, 3};
     SDL_RenderFillRect(renderer, &nose);
     
-    // Draw tail (wagging based on animation)
+    // Draw whiskers
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    int whiskerY = screenY + 18 + bodyOffsetY;
+    SDL_RenderDrawLine(renderer, screenX + 5, whiskerY, screenX + 0, whiskerY - 2);
+    SDL_RenderDrawLine(renderer, screenX + 5, whiskerY + 2, screenX + 0, whiskerY + 2);
+    SDL_RenderDrawLine(renderer, screenX + 35, whiskerY, screenX + 40, whiskerY - 2);
+    SDL_RenderDrawLine(renderer, screenX + 35, whiskerY + 2, screenX + 40, whiskerY + 2);
+    
+    // Draw TWO legs at the bottom (centered)
+    SDL_SetRenderDrawColor(renderer, m_color.r - 40, m_color.g - 40, m_color.b - 10, m_color.a);
+    int leftLegX = screenX + 14;
+    int rightLegX = screenX + 22;
+    
+    // Each leg is 6 pixels wide
+    for (int i = 0; i < 6; i++) {
+        // Left leg
+        SDL_RenderDrawLine(renderer,
+            leftLegX + i, screenY + static_cast<int>(m_height) - 18 + bodyOffsetY,
+            leftLegX + i + static_cast<int>(leftLegOffset / 3.0f), 
+            screenY + static_cast<int>(m_height) + static_cast<int>(leftLegOffset) - 3);
+        // Right leg
+        SDL_RenderDrawLine(renderer,
+            rightLegX + i, screenY + static_cast<int>(m_height) - 18 + bodyOffsetY,
+            rightLegX + i + static_cast<int>(rightLegOffset / 3.0f), 
+            screenY + static_cast<int>(m_height) + static_cast<int>(rightLegOffset) - 3);
+    }
+    
+    // Draw paw pads at the end of legs
+    SDL_SetRenderDrawColor(renderer, 255, 192, 203, 255); // Pink
+    for (int dx = -3; dx <= 3; dx++) {
+        for (int dy = -2; dy <= 2; dy++) {
+            SDL_RenderDrawPoint(renderer, 
+                leftLegX + 3 + static_cast<int>(leftLegOffset / 3.0f) + dx, 
+                screenY + static_cast<int>(m_height) + static_cast<int>(leftLegOffset) - 3 + dy);
+            SDL_RenderDrawPoint(renderer,
+                rightLegX + 3 + static_cast<int>(rightLegOffset / 3.0f) + dx,
+                screenY + static_cast<int>(m_height) + static_cast<int>(rightLegOffset) - 3 + dy);
+        }
+    }
+    
+    // Draw hands/arms (MORE VISIBLE with much greater thickness)
+    SDL_SetRenderDrawColor(renderer, m_color.r - 25, m_color.g - 25, m_color.b - 5, m_color.a);
+    int leftArmX = m_facingRight ? screenX + 10 : screenX + 24;
+    int rightArmX = m_facingRight ? screenX + 22 : screenX + 12;
+    
+    // Each arm is 7 pixels wide (much thicker and more visible)
+    for (int i = 0; i < 7; i++) {
+        SDL_RenderDrawLine(renderer, 
+            leftArmX + i, screenY + 28 + bodyOffsetY,
+            leftArmX + i + static_cast<int>(leftArmOffset / 1.5f), 
+            screenY + 46 + bodyOffsetY + static_cast<int>(leftArmOffset));
+        SDL_RenderDrawLine(renderer,
+            rightArmX + i, screenY + 28 + bodyOffsetY,
+            rightArmX + i + static_cast<int>(rightArmOffset / 1.5f), 
+            screenY + 46 + bodyOffsetY + static_cast<int>(rightArmOffset));
+    }
+    
+    // Draw hand pads (bigger and more visible)
+    SDL_SetRenderDrawColor(renderer, 255, 192, 203, 255);
+    for (int dx = -3; dx <= 3; dx++) {
+        for (int dy = -2; dy <= 2; dy++) {
+            SDL_RenderDrawPoint(renderer,
+                leftArmX + 3 + static_cast<int>(leftArmOffset / 1.5f) + dx,
+                screenY + 46 + bodyOffsetY + static_cast<int>(leftArmOffset) + dy);
+            SDL_RenderDrawPoint(renderer,
+                rightArmX + 3 + static_cast<int>(rightArmOffset / 1.5f) + dx,
+                screenY + 46 + bodyOffsetY + static_cast<int>(rightArmOffset) + dy);
+        }
+    }
+    
+    // Draw tail (curved and wagging)
     SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);
     int tailWag = m_animState == AnimationState::RUNNING_LEFT || m_animState == AnimationState::RUNNING_RIGHT 
-                  ? static_cast<int>(std::sin(m_animationTime * 12.0f) * 8) : 0;
-    int tailBaseX = m_facingRight ? screenX + static_cast<int>(m_width) - 5 : screenX + 5;
-    SDL_RenderDrawLine(renderer, 
-        tailBaseX, screenY + 25 + bodyOffsetY,
-        tailBaseX + (m_facingRight ? 10 : -10), screenY + 15 + tailWag + bodyOffsetY);
+                  ? static_cast<int>(std::sin(m_animationTime * 12.0f) * 10) : 0;
+    int tailBaseX = m_facingRight ? screenX + static_cast<int>(m_width) - 8 : screenX + 8;
+    int tailEndX = tailBaseX + (m_facingRight ? 12 : -12);
     
-    // Draw legs (animated when running)
-    SDL_SetRenderDrawColor(renderer, m_color.r - 30, m_color.g - 30, m_color.b, m_color.a);
-    // Front legs
-    SDL_RenderDrawLine(renderer, screenX + 15, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
-                       screenX + 15, screenY + static_cast<int>(m_height) + legOffset);
-    SDL_RenderDrawLine(renderer, screenX + 20, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
-                       screenX + 20, screenY + static_cast<int>(m_height) - legOffset);
-    // Back legs  
-    SDL_RenderDrawLine(renderer, screenX + 25, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
-                       screenX + 25, screenY + static_cast<int>(m_height) - legOffset);
-    SDL_RenderDrawLine(renderer, screenX + 30, screenY + static_cast<int>(m_height) - 10 + bodyOffsetY,
-                       screenX + 30, screenY + static_cast<int>(m_height) + legOffset);
+    for (int i = 0; i < 3; i++) {
+        SDL_RenderDrawLine(renderer, 
+            tailBaseX, screenY + 30 + bodyOffsetY + i,
+            tailEndX, screenY + 15 + tailWag + bodyOffsetY + i);
+    }
 }
 
