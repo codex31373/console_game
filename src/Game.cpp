@@ -833,24 +833,31 @@ void Game::renderUI() {
     float distance = m_player->getDistanceTraveled();
     int distanceMeters = static_cast<int>(distance / 10.0f); // Convert pixels to "meters"
     
-    // Draw distance background
-    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 180);
-    SDL_Rect distanceBg = {SCREEN_WIDTH - 200, 15, 180, 40};
+    // Draw distance background with blue border and white fill
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 200, 255); // Blue border
+    SDL_Rect distanceBorder = {SCREEN_WIDTH - 240, 15, 230, 40};  // Wider (230px) and less tall (40px)
+    SDL_RenderDrawRect(m_renderer, &distanceBorder);
+    
+    // Fill with white
+    SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255); // White fill
+    SDL_Rect distanceBg = {SCREEN_WIDTH - 239, 16, 228, 38}; // Slightly smaller than border
     SDL_RenderFillRect(m_renderer, &distanceBg);
     
-    // Draw distance label and number as text
-    SDL_Color textColor = {0, 255, 0, 255}; // Green for distance
-    char distStr[20];
-    snprintf(distStr, sizeof(distStr), "DIST: %d", distanceMeters);
+    // Draw distance label and number as blue text
+    SDL_Color textColor = {0, 0, 200, 255}; // Blue text
+    char distStr[32];
+    snprintf(distStr, sizeof(distStr), "DISTANCE: %d", distanceMeters);
     
     // Create a surface with the text
-    SDL_Surface* textSurface = TTF_RenderText_Solid(m_font, distStr, textColor);
+    SDL_Surface* textSurface = TTF_RenderText_Blended(m_font, distStr, textColor);
     if (textSurface) {
         // Create a texture from the surface
         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(m_renderer, textSurface);
         if (textTexture) {
-            // Set the rendering space and render to screen
-            SDL_Rect renderQuad = {SCREEN_WIDTH - 190, 25, textSurface->w, textSurface->h};
+            // Center the text in the box
+            int textX = SCREEN_WIDTH - 230 + (230 - textSurface->w) / 2;  // Adjusted for new width
+            int textY = 15 + (40 - textSurface->h) / 2;
+            SDL_Rect renderQuad = {textX, textY, textSurface->w, textSurface->h};
             SDL_RenderCopy(m_renderer, textTexture, NULL, &renderQuad);
             // Free the texture
             SDL_DestroyTexture(textTexture);
