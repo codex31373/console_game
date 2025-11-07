@@ -16,6 +16,7 @@ public:
     void setEffectEnabled(bool enabled) { m_effectEnabled = enabled; }
     void setEffectSpeed(float speed) { m_effectSpeed = speed; }
     void setScale(float scale) { m_scale = scale; }
+    void setTextAlignment(float alignment) { m_textAlignment = alignment; }  // 0.0 = left, 0.5 = center, 1.0 = right
     
 private:
     std::string m_text;
@@ -23,6 +24,7 @@ private:
     float m_effectTime = 0.0f;
     float m_effectSpeed = 2.0f;
     float m_scale = 3.0f;  // Scaling factor for the sign
+    float m_textAlignment = 0.0f;  // Text alignment (0.0 = left, 0.5 = center, 1.0 = right)
     
     // 8x8 font data for each character (simplified)
     static constexpr int CHAR_WIDTH = 5;

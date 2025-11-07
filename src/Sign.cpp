@@ -103,7 +103,7 @@ const uint8_t Sign::FONT[][7] = {
 };
 
 Sign::Sign(float x, float y, const std::string& text, const Color& color)
-    : GameObject(x, y, (CHAR_WIDTH + CHAR_SPACING) * text.length() * 3, CHAR_HEIGHT * 3, color)
+    : GameObject(x, y, (CHAR_WIDTH + CHAR_SPACING) * text.length() * 6, CHAR_HEIGHT * 6, color)
     , m_text(text) {
     // Convert text to uppercase for the sign
     std::transform(m_text.begin(), m_text.end(), m_text.begin(), ::toupper);
@@ -163,11 +163,20 @@ void Sign::render(SDL_Renderer* renderer) const {
         SDL_RenderDrawPointF(renderer, x + totalWidth + 12, y + totalHeight + 12 - i);
     }
     
-    // Draw each character with a slight offset for 3D effect
+    // Calculate total width of the text for alignment
+    float totalTextWidth = m_text.length() * (CHAR_WIDTH + CHAR_SPACING) * m_scale;
+    
+    // Calculate starting x position based on alignment
+    float startX = x;
+    if (m_textAlignment > 0.0f) {
+        startX = x + (m_width - totalTextWidth) * m_textAlignment;
+    }
+    
+    // Draw each character with alignment
     for (size_t i = 0; i < m_text.length(); ++i) {
         // Shadow
         drawChar(renderer, m_text[i], 
-                x + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale + 2, 
+                startX + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale + 2, 
                 y + 2, 
                 m_scale,
                 {0, 0, 0, 128});
@@ -179,7 +188,7 @@ void Sign::render(SDL_Renderer* renderer) const {
         Uint8 blue = static_cast<Uint8>(m_color.b * pulse * 0.6f);
         
         drawChar(renderer, m_text[i], 
-                x + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale, 
+                startX + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale, 
                 y, 
                 m_scale,
                 {red, green, blue, m_color.a});

@@ -866,17 +866,17 @@ void Game::renderUI() {
         SDL_Rect overlay = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(m_renderer, &overlay);
         
-        // Position GAME OVER box higher on the screen
-        const int gameOverBoxY = SCREEN_HEIGHT/2 - 250;  // Moved up from center
+        // Position GAME OVER box (slightly lower than before)
+        const int gameOverBoxY = SCREEN_HEIGHT/2 - 200;  // Moved down a bit
         
         // Draw GAME OVER box with red border and black background
         SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red border
-        SDL_Rect gameOverOuter = {SCREEN_WIDTH/2 - 350, gameOverBoxY, 700, 180};
+        SDL_Rect gameOverOuter = {SCREEN_WIDTH/2 - 350, gameOverBoxY+95, 700, 110};
         SDL_RenderFillRect(m_renderer, &gameOverOuter);
         
         // Black inner box
         SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
-        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 345, gameOverBoxY + 5, 690, 170};
+        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 345, gameOverBoxY + 100, 690, 100};
         SDL_RenderFillRect(m_renderer, &gameOverInner);
         
         // Draw "GAME OVER" text in bright red with a much larger font
@@ -899,46 +899,21 @@ void Game::renderUI() {
         }
         
         if (largeFont) {
-            // Make the font bright red with a slight glow effect
+            // Make the font bright red
             SDL_Color brightRed = {255, 30, 30, 255};
-            
-            // Render the text with a slight offset to create a glow effect
-            SDL_Surface* shadowSurface = TTF_RenderText_Blended(largeFont, "GAME OVER", {255, 0, 0, 200});
             SDL_Surface* gameOverSurface = TTF_RenderText_Blended(largeFont, "GAME OVER", brightRed);
             
-            // Apply the glow effect if both surfaces were created
-            if (shadowSurface && gameOverSurface) {
-                // The shadow is handled by the order of rendering below
-            } else if (!gameOverSurface && shadowSurface) {
-                // If only shadow was created, use that
-                gameOverSurface = shadowSurface;
-                shadowSurface = nullptr;
-            }
             if (gameOverSurface) {
                 SDL_Texture* gameOverTexture = SDL_CreateTextureFromSurface(m_renderer, gameOverSurface);
                 if (gameOverTexture) {
                     int textW = gameOverSurface->w;
                     int textH = gameOverSurface->h;
-                    // Center the text in the box with a slight shadow for depth
-                    if (shadowSurface) {
-                        SDL_Texture* shadowTexture = SDL_CreateTextureFromSurface(m_renderer, shadowSurface);
-                        if (shadowTexture) {
-                            SDL_Rect shadowRect = {
-                                SCREEN_WIDTH/2 - textW/2 + 4,  // Slight offset for shadow
-                                gameOverBoxY + 90 - textH/2 + 4,  // Center in the game over box
-                                textW,
-                                textH
-                            };
-                            SDL_RenderCopy(m_renderer, shadowTexture, NULL, &shadowRect);
-                            SDL_DestroyTexture(shadowTexture);
-                        }
-                        SDL_FreeSurface(shadowSurface);
-                    }
+                    // No shadow effect, just center the text
                     
                     // Position text in the center of the game over box
                     SDL_Rect dstRect = {
                         SCREEN_WIDTH/2 - textW/2,
-                        gameOverBoxY + 90 - textH/2,  // Center in the game over box
+                        gameOverBoxY + 131 - textH/2 + 20,  // Center in the game over box, slightly lower
                         textW,
                         textH
                     };
@@ -950,27 +925,29 @@ void Game::renderUI() {
             TTF_CloseFont(largeFont);
         }
         
-        // Create and render the MACHI sign (larger and with effects)
+        // Create and render the MACHI sign (centered above GAME OVER)
         if (!m_sign) {
-            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100.0f;  // Shift sign to the right
-            float signY = 100.0f;  // Position from top
+            // Center the sign horizontally
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100;  // Centered
+            float signY = 80.0f;  // Slightly lower than before
             m_sign = std::make_unique<Sign>(
-                signX,                         // x position (centered)
-                signY,                         // y position from top
+                signX,                         // x position (aligned with GAME OVER)
+                signY,                         // y position (higher up)
                 "MACHI",                      // text
                 Color{255, 50, 50, 255}        // bright red color
             );
             m_sign->setEffectSpeed(2.5f);      // Slightly faster pulsing
-            m_sign->setScale(8.0f);           // Make it even bigger
+            m_sign->setScale(6.0f);           // Slightly smaller to fit better
+            m_sign->setTextAlignment(1.0f);    // Center text within the sign
         } else {
             // Update position in case window was resized
-            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 150.0f;
-            m_sign->setPosition(signX, 100.0f);
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100;
+            m_sign->setPosition(signX, 80.0f);
         }
         m_sign->render(m_renderer);
         
-        // Draw final distance box (moved down to make room for game over text)
-        const int distanceBoxY = SCREEN_HEIGHT/2 - 40;  // Moved down from center
+        // Draw final distance box (positioned below GAME OVER)
+        const int distanceBoxY = SCREEN_HEIGHT/2 + 95;  // Slightly lower than before
         
         // Draw outer blue box
         SDL_SetRenderDrawColor(m_renderer, 0, 0, 200, 255);  // Darker blue
@@ -1047,7 +1024,7 @@ void Game::renderUI() {
                         SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
                         SDL_Rect bgRect = {
                             SCREEN_WIDTH/2 - coinSurface->w/2 - 15,
-                            SCREEN_HEIGHT/2 + 50,
+                            SCREEN_HEIGHT/2 + 180,
                             coinSurface->w + 30,
                             coinSurface->h + 20
                         };
@@ -1067,7 +1044,7 @@ void Game::renderUI() {
                         // Draw text
                         SDL_Rect textRect = {
                             SCREEN_WIDTH/2 - coinSurface->w/2,
-                            SCREEN_HEIGHT/2 + 60,
+                            SCREEN_HEIGHT/2 + 190,
                             coinSurface->w,
                             coinSurface->h
                         };
