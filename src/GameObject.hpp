@@ -18,7 +18,7 @@ public:
     float getWidth() const { return m_width; }
     float getHeight() const { return m_height; }
     
-    void setCameraOffset(float x, float y) { m_cameraOffsetX = x; m_cameraOffsetY = y; }
+    virtual void setCameraOffset(float x, float y) { m_cameraOffsetX = x; m_cameraOffsetY = y; }
 
 protected:
     float m_x, m_y;
