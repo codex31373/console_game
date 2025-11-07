@@ -684,60 +684,47 @@ void Game::renderUI() {
     
     // Render lives (hearts) in top-left corner
     int lives = m_player->getLives();
-    SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red hearts
     
-    for (int i = 0; i < lives; i++) {
-        int heartX = 20 + i * 35;  // Slightly closer together
-        int heartY = 25;
-        int size = 20;  // Slightly larger heart
-        
-        // Draw a better heart shape (rotated 180 degrees)
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
-                // Heart shape equation with 180-degree rotation (invert both x and y)
-                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
-                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
-                
-                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
-                float x2 = xv * xv;
-                float y2 = yv * yv;
-                float y3 = y2 * yv;
-                
-                if ((x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3 < 0.0f) {
-                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
-                }
-            }
-        }
-        
-        // Add a subtle outline
-        SDL_SetRenderDrawColor(m_renderer, 200, 0, 0, 255);
-        SDL_Rect heartRect = {heartX - 2, heartY - 5, size + 4, size + 4};
-        SDL_RenderDrawRect(m_renderer, &heartRect);
-        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
-    }
-    
-    // Draw empty hearts for lost lives
-    SDL_SetRenderDrawColor(m_renderer, 100, 0, 0, 100); // Darker red with transparency
-    for (int i = lives; i < 3; i++) {
+    for (int i = 0; i < 3; i++) { // Always draw 3 hearts (full or empty)
         int heartX = 20 + i * 35;
         int heartY = 25;
         int size = 20;
         
-        // Draw outline of heart (rotated 180 degrees)
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
-                // Heart shape equation with 180-degree rotation (invert both x and y)
-                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
-                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
-                
-                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
-                float x2 = xv * xv;
-                float y2 = yv * yv;
-                float y3 = y2 * yv;
-                
-                float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
-                if (val < 0.05f && val > -0.05f) {  // Only draw near the edge
-                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+        // Determine heart color based on whether it's a full or empty heart
+        if (i < lives) {
+            // Draw filled heart (red)
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                    float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                    
+                    float x2 = xv * xv;
+                    float y2 = yv * yv;
+                    float y3 = y2 * yv;
+                    
+                    float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
+                    if (val < 0.0f) {
+                        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
+                        SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                    }
+                }
+            }
+        } else {
+            // Draw empty heart outline (darker red)
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                    float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                    
+                    float x2 = xv * xv;
+                    float y2 = yv * yv;
+                    float y3 = y2 * yv;
+                    
+                    float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
+                    if (val < 0.1f && val > -0.1f) {
+                        SDL_SetRenderDrawColor(m_renderer, 150, 0, 0, 255);
+                        SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                    }
                 }
             }
         }
