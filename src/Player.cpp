@@ -37,14 +37,13 @@ void Player::update(float deltaTime) {
         }
     }
     
-    // Update position and track distance
-    float oldX = m_x;
+    // Update position
     m_x += m_velX * deltaTime;
     m_y += m_velY * deltaTime;
     
-    // Track distance traveled (only when moving right)
-    if (m_x > oldX) {
-        m_distanceTraveled += (m_x - oldX);
+    // Update maximum distance traveled to the right
+    if (m_x > m_maxRightDistance) {
+        m_maxRightDistance = m_x;
     }
     
     // Only prevent going off the left edge of the world

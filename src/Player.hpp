@@ -47,9 +47,8 @@ public:
     bool isAlive() const { return m_lives > 0; }
     
     // Distance tracking
-    float getDistanceTraveled() const { return m_distanceTraveled; }
-    void updateDistance(float deltaX) { if (deltaX > 0) m_distanceTraveled += deltaX; }
-    void resetDistance() { m_distanceTraveled = 0.0f; }
+    float getDistanceTraveled() const { return m_maxRightDistance; }
+    void resetDistance() { m_maxRightDistance = 0.0f; }
     
     // Knockback for collision
     void applyKnockback(float forceX, float forceY) {
@@ -92,7 +91,7 @@ private:
     int m_lives = 3;
     
     // Distance tracking
-    float m_distanceTraveled = 0.0f;
+    float m_maxRightDistance = 0.0f;  // Tracks the rightmost position reached
 };
 
 #endif // PLAYER_HPP

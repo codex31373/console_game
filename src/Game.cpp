@@ -406,11 +406,7 @@ void Game::update(float deltaTime) {
     // Reset grounded state - will be set to true if standing on something
     m_player->setGrounded(false);
     
-    // Update distance traveled (only when moving right and game is not over)
-    if (!m_gameOver && m_player->getVelX() > 0) {
-        float distanceDelta = m_player->getVelX() * deltaTime;
-        m_player->updateDistance(distanceDelta);
-    }
+    // Distance is now tracked in Player::update() to only count progress to the right
     
     // Check for platform and ground collisions
     bool onGround = false;
