@@ -927,22 +927,29 @@ void Game::renderUI() {
         
         // Create and render the MACHI sign (centered above GAME OVER)
         if (!m_sign) {
-            // Center the sign horizontally
-            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100;  // Centered
-            float signY = 80.0f;  // Slightly lower than before
+            // Calculate sign dimensions (twice as big as before)
+            const float signWidth = 400.0f;  // Increased width for better centering
+            const float signHeight = 200.0f; // Increased height for better proportions
+            
+            // Center the sign horizontally with the new size
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - signWidth * 0.5f + 50;
+            float signY = 190.0f;  // Moved up to make room for larger size
+            
             m_sign = std::make_unique<Sign>(
-                signX,                         // x position (aligned with GAME OVER)
+                signX,                         // x position (centered)
                 signY,                         // y position (higher up)
                 "MACHI",                      // text
                 Color{255, 50, 50, 255}        // bright red color
             );
             m_sign->setEffectSpeed(2.5f);      // Slightly faster pulsing
-            m_sign->setScale(6.0f);           // Slightly smaller to fit better
-            m_sign->setTextAlignment(1.0f);    // Center text within the sign
+            m_sign->setScale(12.0f);           // Twice as big as before (was 6.0f)
+            m_sign->setTextAlignment(0.5f);    // Center text within the sign
+            m_sign->setSize(signWidth, signHeight); // Set explicit size for better centering
         } else {
             // Update position in case window was resized
-            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100;
-            m_sign->setPosition(signX, 80.0f);
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 200.0f; // Adjusted for new size
+            m_sign->setPosition(signX, 40.0f);
+            m_sign->setSize(400.0f, 200.0f); // Ensure size is maintained
         }
         m_sign->render(m_renderer);
         

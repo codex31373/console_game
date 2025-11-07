@@ -17,6 +17,7 @@ public:
     void setEffectSpeed(float speed) { m_effectSpeed = speed; }
     void setScale(float scale) { m_scale = scale; }
     void setTextAlignment(float alignment) { m_textAlignment = alignment; }  // 0.0 = left, 0.5 = center, 1.0 = right
+    void setSize(float width, float height) { m_width = width; m_height = height; }  // Set explicit size for the sign
     
 private:
     std::string m_text;

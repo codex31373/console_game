@@ -166,18 +166,20 @@ void Sign::render(SDL_Renderer* renderer) const {
     // Calculate total width of the text for alignment
     float totalTextWidth = m_text.length() * (CHAR_WIDTH + CHAR_SPACING) * m_scale;
     
-    // Calculate starting x position based on alignment
-    float startX = x;
+    // Calculate starting x position based on alignment with 2px left adjustment
+    float startX = x - 2.0f;  // Move 2 pixels to the left
     if (m_textAlignment > 0.0f) {
-        startX = x + (m_width - totalTextWidth) * m_textAlignment;
+        startX = x + (m_width - totalTextWidth) * m_textAlignment - 2.0f;  // Adjust for alignment and move left
     }
+    // Add a small vertical offset to center the text better
+    const float verticalOffset = 8.0f * (m_scale / 6.0f);
     
     // Draw each character with alignment
     for (size_t i = 0; i < m_text.length(); ++i) {
         // Shadow
         drawChar(renderer, m_text[i], 
                 startX + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale + 2, 
-                y + 2, 
+                y + 2 + verticalOffset, // Apply vertical offset to shadow
                 m_scale,
                 {0, 0, 0, 128});
                 
@@ -189,7 +191,7 @@ void Sign::render(SDL_Renderer* renderer) const {
         
         drawChar(renderer, m_text[i], 
                 startX + i * (CHAR_WIDTH + CHAR_SPACING) * m_scale, 
-                y, 
+                y + verticalOffset, // Apply vertical offset to main text
                 m_scale,
                 {red, green, blue, m_color.a});
     }
