@@ -8,6 +8,7 @@
 #include "GameObject.hpp"
 #include "Player.hpp"
 #include "Bird.hpp"
+#include "Sign.hpp"
 #include "Cloud.hpp"
 
 class Game {
@@ -46,6 +47,7 @@ private:
     std::vector<std::unique_ptr<GameObject>> m_gameObjects;
     std::unique_ptr<Player> m_player;
     std::vector<std::unique_ptr<Bird>> m_birds;
+    std::unique_ptr<Sign> m_sign;
     std::vector<std::unique_ptr<Cloud>> m_clouds;
 
     // World and camera properties

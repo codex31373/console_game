@@ -15,6 +15,7 @@ set(SOURCES
     src/Platform.cpp
     src/Bird.cpp
     src/Cloud.cpp
+    src/Sign.cpp
 )
 
 set(HEADERS
@@ -24,6 +25,7 @@ set(HEADERS
     src/Platform.hpp
     src/Bird.hpp
     src/Cloud.hpp
+    src/Sign.hpp
     src/Common.hpp
 )
 

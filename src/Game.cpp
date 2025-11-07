@@ -280,6 +280,8 @@ void Game::createLevel() {
     m_clouds.push_back(std::make_unique<Cloud>(100.0f, 100.0f, 120.0f, 60.0f));
     m_clouds.push_back(std::make_unique<Cloud>(400.0f, 80.0f, 150.0f, 70.0f));
     m_clouds.push_back(std::make_unique<Cloud>(700.0f, 110.0f, 130.0f, 65.0f));
+    
+    // Sign will be created when game is over
 }
 
 void Game::run() {
@@ -622,6 +624,11 @@ void Game::render() {
     for (const auto& cloud : m_clouds) {
         cloud->render(m_renderer);
     }
+    
+    // Render the MACHI sign
+    if (m_sign) {
+        m_sign->render(m_renderer);
+    }
 
     // Render all game objects
     for (const auto& obj : m_gameObjects) {
@@ -754,6 +761,9 @@ void Game::restartGame() {
     m_player->setVelY(0.0f);
     m_invulnerabilityTimer = 0.0f;
     
+    // Clear the sign when starting a new game
+    m_sign.reset();
+    
     // Clear birds
     m_birds.clear();
     m_birdSpawnTimer = 0.0f;
@@ -856,103 +866,218 @@ void Game::renderUI() {
         SDL_Rect overlay = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(m_renderer, &overlay);
         
-        // Draw MACHI box with red border
-        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red border
-        SDL_Rect gameOverBg = {SCREEN_WIDTH/2 - 220, SCREEN_HEIGHT/2 - 150, 440, 80};
-        SDL_RenderFillRect(m_renderer, &gameOverBg);
+        // Position GAME OVER box higher on the screen
+        const int gameOverBoxY = SCREEN_HEIGHT/2 - 250;  // Moved up from center
         
-        // White inner box
-        SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
-        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 215, SCREEN_HEIGHT/2 - 145, 430, 70};
+        // Draw GAME OVER box with red border and black background
+        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red border
+        SDL_Rect gameOverOuter = {SCREEN_WIDTH/2 - 350, gameOverBoxY, 700, 180};
+        SDL_RenderFillRect(m_renderer, &gameOverOuter);
+        
+        // Black inner box
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+        SDL_Rect gameOverInner = {SCREEN_WIDTH/2 - 345, gameOverBoxY + 5, 690, 170};
         SDL_RenderFillRect(m_renderer, &gameOverInner);
         
-        // Draw MACHI text
-        if (m_font) {
-            SDL_Color redColor = {255, 0, 0, 255};
-            SDL_Surface* machiSurface = TTF_RenderText_Blended(m_font, "MACHI", redColor);
-            if (machiSurface) {
-                SDL_Texture* machiTexture = SDL_CreateTextureFromSurface(m_renderer, machiSurface);
-                if (machiTexture) {
-                    int textW = machiSurface->w;
-                    int textH = machiSurface->h;
-                    SDL_Rect dstRect = {
-                        SCREEN_WIDTH/2 - textW/2,
-                        SCREEN_HEIGHT/2 - 130,
-                        textW,
-                        textH
-                    };
-                    SDL_RenderCopy(m_renderer, machiTexture, NULL, &dstRect);
-                    SDL_DestroyTexture(machiTexture);
+        // Draw "GAME OVER" text in bright red with a much larger font
+        TTF_Font* largeFont = TTF_OpenFont("assets/fonts/impact.ttf", 96);
+        if (!largeFont) {
+            largeFont = TTF_OpenFont("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 96);
+            if (!largeFont) {
+                largeFont = TTF_OpenFont("assets/fonts/arialbd.ttf", 96);
+                if (!largeFont) {
+                    largeFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 96);
+                    if (!largeFont) {
+                        // Last resort fallback to any available font
+                        largeFont = TTF_OpenFont("assets/fonts/arial.ttf", 96);
+                        if (!largeFont) {
+                            largeFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 96);
+                        }
+                    }
                 }
-                SDL_FreeSurface(machiSurface);
             }
         }
         
-        // Draw final distance box
-        SDL_SetRenderDrawColor(m_renderer, 100, 100, 255, 255);
-        SDL_Rect distanceBg2 = {SCREEN_WIDTH/2 - 200, SCREEN_HEIGHT/2 - 40, 400, 50};
+        if (largeFont) {
+            // Make the font bright red with a slight glow effect
+            SDL_Color brightRed = {255, 30, 30, 255};
+            
+            // Render the text with a slight offset to create a glow effect
+            SDL_Surface* shadowSurface = TTF_RenderText_Blended(largeFont, "GAME OVER", {255, 0, 0, 200});
+            SDL_Surface* gameOverSurface = TTF_RenderText_Blended(largeFont, "GAME OVER", brightRed);
+            
+            // Apply the glow effect if both surfaces were created
+            if (shadowSurface && gameOverSurface) {
+                // The shadow is handled by the order of rendering below
+            } else if (!gameOverSurface && shadowSurface) {
+                // If only shadow was created, use that
+                gameOverSurface = shadowSurface;
+                shadowSurface = nullptr;
+            }
+            if (gameOverSurface) {
+                SDL_Texture* gameOverTexture = SDL_CreateTextureFromSurface(m_renderer, gameOverSurface);
+                if (gameOverTexture) {
+                    int textW = gameOverSurface->w;
+                    int textH = gameOverSurface->h;
+                    // Center the text in the box with a slight shadow for depth
+                    if (shadowSurface) {
+                        SDL_Texture* shadowTexture = SDL_CreateTextureFromSurface(m_renderer, shadowSurface);
+                        if (shadowTexture) {
+                            SDL_Rect shadowRect = {
+                                SCREEN_WIDTH/2 - textW/2 + 4,  // Slight offset for shadow
+                                gameOverBoxY + 90 - textH/2 + 4,  // Center in the game over box
+                                textW,
+                                textH
+                            };
+                            SDL_RenderCopy(m_renderer, shadowTexture, NULL, &shadowRect);
+                            SDL_DestroyTexture(shadowTexture);
+                        }
+                        SDL_FreeSurface(shadowSurface);
+                    }
+                    
+                    // Position text in the center of the game over box
+                    SDL_Rect dstRect = {
+                        SCREEN_WIDTH/2 - textW/2,
+                        gameOverBoxY + 90 - textH/2,  // Center in the game over box
+                        textW,
+                        textH
+                    };
+                    SDL_RenderCopy(m_renderer, gameOverTexture, NULL, &dstRect);
+                    SDL_DestroyTexture(gameOverTexture);
+                }
+                SDL_FreeSurface(gameOverSurface);
+            }
+            TTF_CloseFont(largeFont);
+        }
+        
+        // Create and render the MACHI sign (larger and with effects)
+        if (!m_sign) {
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 100.0f;  // Shift sign to the right
+            float signY = 100.0f;  // Position from top
+            m_sign = std::make_unique<Sign>(
+                signX,                         // x position (centered)
+                signY,                         // y position from top
+                "MACHI",                      // text
+                Color{255, 50, 50, 255}        // bright red color
+            );
+            m_sign->setEffectSpeed(2.5f);      // Slightly faster pulsing
+            m_sign->setScale(8.0f);           // Make it even bigger
+        } else {
+            // Update position in case window was resized
+            float signX = static_cast<float>(SCREEN_WIDTH) * 0.5f - 150.0f;
+            m_sign->setPosition(signX, 100.0f);
+        }
+        m_sign->render(m_renderer);
+        
+        // Draw final distance box (moved down to make room for game over text)
+        const int distanceBoxY = SCREEN_HEIGHT/2 - 40;  // Moved down from center
+        
+        // Draw outer blue box
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 200, 255);  // Darker blue
+        SDL_Rect distanceBg2 = {SCREEN_WIDTH/2 - 220, distanceBoxY, 440, 70};  // Taller box
         SDL_RenderFillRect(m_renderer, &distanceBg2);
         
-        SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
-        SDL_Rect distanceInner = {SCREEN_WIDTH/2 - 195, SCREEN_HEIGHT/2 - 35, 390, 40};
+        // Draw inner white box
+        SDL_SetRenderDrawColor(m_renderer, 240, 240, 255, 255);  // Light blue-white
+        SDL_Rect distanceInner = {SCREEN_WIDTH/2 - 215, distanceBoxY + 5, 430, 60};
         SDL_RenderFillRect(m_renderer, &distanceInner);
         
         // Draw final distance text with font
-        SDL_Color blueColor = {0, 0, 255, 255};
+        SDL_Color blueColor = {0, 0, 150, 255};  // Darker blue for better contrast
         char finalDistStr[30];
         snprintf(finalDistStr, sizeof(finalDistStr), "FINAL DISTANCE: %d", distanceMeters);
         
-        SDL_Surface* finalDistSurface = TTF_RenderText_Solid(m_font, finalDistStr, blueColor);
+        // Use a slightly larger font for the distance
+        TTF_Font* distanceFont = TTF_OpenFont("assets/fonts/arialbd.ttf", 28);
+        if (!distanceFont) {
+            distanceFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28);
+            if (!distanceFont) distanceFont = m_font;  // Fall back to default font
+        }
+        
+        SDL_Surface* finalDistSurface = TTF_RenderText_Blended(distanceFont ? distanceFont : m_font, finalDistStr, blueColor);
         if (finalDistSurface) {
             SDL_Texture* finalDistTexture = SDL_CreateTextureFromSurface(m_renderer, finalDistSurface);
             if (finalDistTexture) {
                 int textW = finalDistSurface->w;
                 int textH = finalDistSurface->h;
-                SDL_Rect dstRect = {SCREEN_WIDTH/2 - textW/2, SCREEN_HEIGHT/2 - 25, textW, textH};
+                // Center the text in the distance box
+                SDL_Rect dstRect = {
+                    SCREEN_WIDTH/2 - textW/2,
+                    distanceBoxY + 35 - textH/2,  // Vertically center in the box
+                    textW,
+                    textH
+                };
                 SDL_RenderCopy(m_renderer, finalDistTexture, NULL, &dstRect);
                 SDL_DestroyTexture(finalDistTexture);
             }
             SDL_FreeSurface(finalDistSurface);
         }
         
-        // Draw "INSERT A COIN FOR NEW GAME" message
-        SDL_Color goldColor = {255, 200, 0, 255};
-        const char* coinMsg = "INSERT A COIN FOR NEW GAME";
-        
-        // Create a larger font for the coin message
-        TTF_Font* largeFont = TTF_OpenFont("assets/fonts/arial.ttf", 28);
-        if (!largeFont) {
-            largeFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28);
+        if (distanceFont && distanceFont != m_font) {
+            TTF_CloseFont(distanceFont);
         }
         
-        if (largeFont) {
-            SDL_Surface* coinSurface = TTF_RenderText_Solid(largeFont, coinMsg, goldColor);
-            if (coinSurface) {
-                SDL_Texture* coinTexture = SDL_CreateTextureFromSurface(m_renderer, coinSurface);
-                if (coinTexture) {
-                    // Draw background
-                    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
-                    SDL_Rect bgRect = {
-                        SCREEN_WIDTH/2 - coinSurface->w/2 - 10,
-                        SCREEN_HEIGHT/2 + 50,
-                        coinSurface->w + 20,
-                        coinSurface->h + 10
-                    };
-                    SDL_RenderFillRect(m_renderer, &bgRect);
-                    
-                    // Draw text
-                    SDL_Rect textRect = {
-                        SCREEN_WIDTH/2 - coinSurface->w/2,
-                        SCREEN_HEIGHT/2 + 55,
-                        coinSurface->w,
-                        coinSurface->h
-                    };
-                    SDL_RenderCopy(m_renderer, coinTexture, NULL, &textRect);
-                    SDL_DestroyTexture(coinTexture);
-                }
-                SDL_FreeSurface(coinSurface);
+        // Draw "INSERT COIN" message with flashing effect
+        static Uint32 lastFlashTime = SDL_GetTicks();
+        static bool flashVisible = true;
+        Uint32 currentTime = SDL_GetTicks();
+        
+        // Toggle visibility every 500ms for flashing effect
+        if (currentTime - lastFlashTime > 500) {
+            flashVisible = !flashVisible;
+            lastFlashTime = currentTime;
+        }
+        
+        if (flashVisible) {
+            const char* coinMsg = "INSERT COIN";
+            
+            // Create a larger font for the coin message
+            TTF_Font* largeFont = TTF_OpenFont("assets/fonts/arial.ttf", 32);
+            if (!largeFont) {
+                largeFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32);
             }
-            TTF_CloseFont(largeFont);
+            
+            if (largeFont) {
+                SDL_Color redColor = {255, 0, 0, 255};
+                SDL_Surface* coinSurface = TTF_RenderText_Blended(largeFont, coinMsg, redColor);
+                if (coinSurface) {
+                    SDL_Texture* coinTexture = SDL_CreateTextureFromSurface(m_renderer, coinSurface);
+                    if (coinTexture) {
+                        // Draw black background with red border
+                        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+                        SDL_Rect bgRect = {
+                            SCREEN_WIDTH/2 - coinSurface->w/2 - 15,
+                            SCREEN_HEIGHT/2 + 50,
+                            coinSurface->w + 30,
+                            coinSurface->h + 20
+                        };
+                        // Draw red border
+                        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
+                        SDL_RenderDrawRect(m_renderer, &bgRect);
+                        // Draw inner black area
+                        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+                        SDL_Rect innerRect = {
+                            bgRect.x + 2,
+                            bgRect.y + 2,
+                            bgRect.w - 4,
+                            bgRect.h - 4
+                        };
+                        SDL_RenderFillRect(m_renderer, &innerRect);
+                        
+                        // Draw text
+                        SDL_Rect textRect = {
+                            SCREEN_WIDTH/2 - coinSurface->w/2,
+                            SCREEN_HEIGHT/2 + 60,
+                            coinSurface->w,
+                            coinSurface->h
+                        };
+                        SDL_RenderCopy(m_renderer, coinTexture, NULL, &textRect);
+                        SDL_DestroyTexture(coinTexture);
+                    }
+                    SDL_FreeSurface(coinSurface);
+                }
+                TTF_CloseFont(largeFont);
+            }
         }
     }
 }
