@@ -3,6 +3,7 @@
 #include "Player.hpp"
 #include "Platform.hpp"
 #include "Bird.hpp"
+#include "Cloud.hpp"
 #include "Common.hpp"
 #include <iostream>
 #include <memory>
@@ -274,6 +275,11 @@ void Game::createLevel() {
             m_gameObjects.push_back(std::move(topPlatform));
         }
     }
+
+    // Create some clouds for background decoration
+    m_clouds.push_back(std::make_unique<Cloud>(100.0f, 100.0f, 120.0f, 60.0f));
+    m_clouds.push_back(std::make_unique<Cloud>(400.0f, 80.0f, 150.0f, 70.0f));
+    m_clouds.push_back(std::make_unique<Cloud>(700.0f, 110.0f, 130.0f, 65.0f));
 }
 
 void Game::run() {
@@ -388,6 +394,11 @@ void Game::update(float deltaTime) {
     
     // Update birds
     updateBirds(deltaTime);
+
+    // Update clouds
+    for (auto& cloud : m_clouds) {
+        cloud->update(deltaTime);
+    }
 
     // Update player first
     m_player->update(deltaTime);
@@ -610,6 +621,11 @@ void Game::render() {
     // Clear screen with light blue background
     SDL_SetRenderDrawColor(m_renderer, 135, 206, 250, 255); // Light sky blue
     SDL_RenderClear(m_renderer);
+
+    // Render clouds in background
+    for (const auto& cloud : m_clouds) {
+        cloud->render(m_renderer);
+    }
 
     // Render all game objects
     for (const auto& obj : m_gameObjects) {

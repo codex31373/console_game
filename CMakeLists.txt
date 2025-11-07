@@ -14,6 +14,7 @@ set(SOURCES
     src/Player.cpp
     src/Platform.cpp
     src/Bird.cpp
+    src/Cloud.cpp
 )
 
 set(HEADERS
@@ -22,6 +23,7 @@ set(HEADERS
     src/Player.hpp
     src/Platform.hpp
     src/Bird.hpp
+    src/Cloud.hpp
     src/Common.hpp
 )
 
