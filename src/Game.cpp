@@ -87,11 +87,26 @@ void Game::createLevel() {
     float currentX = 0.0f;
     float worldEnd = static_cast<float>(SCREEN_WIDTH * 3);
     
-    // Create ground segments with more frequent gaps
-    for (int i = 0; i < 20; i++) {  // Increased from 15 to 20 for more segments
-        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px) for more gaps
+    // Create ground with very wide and frequent gaps
+    float currentSegment = 0;
+    while (currentX < worldEnd) {
+        // Add a gap (80% chance after first segment)
+        if (currentSegment > 0 && rand() % 10 < 8) {
+            // Very wide gaps: 150-300px
+            float gapWidth = 150.0f + (rand() % 150);
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+            
+            // Skip adding ground segment if we've reached the end
+            if (currentX >= worldEnd) break;
+        }
         
-        // Create ground segment
+        // Add ground segment (shorter segments: 40-100px)
+        float segmentWidth = 40.0f + (rand() % 60);
+        if (currentX + segmentWidth > worldEnd) {
+            segmentWidth = worldEnd - currentX;
+        }
+        
         auto groundSegment = std::make_unique<GameObject>(
             currentX, groundY,
             segmentWidth, 50.0f,
@@ -99,25 +114,19 @@ void Game::createLevel() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add vertical obstacles on top of ground segments (30% chance)
-        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
-            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+        // Add vertical obstacles (20% chance)
+        if (currentSegment > 1 && rand() % 5 == 0) {
+            float obstacleHeight = 60.0f + (rand() % 60);
             auto obstacle = std::make_unique<GameObject>(
                 currentX + 10.0f, groundY - obstacleHeight,
                 20.0f, obstacleHeight,
-                Color{150, 75, 0, 255}  // Brown color for obstacles
+                Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(obstacle));
         }
         
         currentX += segmentWidth;
-        
-        // Add gaps more frequently (60% chance) but keep them jumpable
-        if (i > 0 && currentX < worldEnd - 200.0f && rand() % 10 < 6) { // 60% chance of gap
-            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
-            m_groundGaps.push_back({currentX, gapWidth});
-            currentX += gapWidth;
-        }
+        currentSegment++;
     }
     
     // Fill remaining ground
@@ -330,7 +339,7 @@ void Game::update(float deltaTime) {
         
         // Check if this is a ground segment (wide, flat object near the bottom of the screen)
         bool isGroundSegment = (objectTop >= 540.0f && objectTop <= 560.0f && 
-                              objectBottom > 550.0f && obj->getWidth() > 100.0f);
+                              objectBottom > 550.0f && obj->getWidth() >= 20.0f);
         
         // Check if player is standing on or landing on platform/ground
         if ((dynamic_cast<Platform*>(obj.get()) || isGroundSegment) &&
@@ -451,38 +460,48 @@ void Game::generateMorePlatformsIfNeeded() {
     float currentEnd = m_worldWidth;
     m_worldWidth += 1000.0f;  // Extend the world by 1000 pixels
     
-    // Add new ground segments with more frequent gaps and obstacles
+    // Add new ground with very wide and frequent gaps
     float currentX = currentEnd;
-    for (int i = 0; i < 10; i++) {  // Increased from 8 to 10 for more segments
-        float segmentWidth = 80.0f + (rand() % 80); // Shorter segments (80-160px)
+    float currentSegment = 0;
+    
+    while (currentX < m_worldWidth) {
+        // Add a gap (80% chance after first segment)
+        if (currentSegment > 0 && rand() % 10 < 8) {
+            // Very wide gaps: 150-300px
+            float gapWidth = 150.0f + (rand() % 150);
+            m_groundGaps.push_back({currentX, gapWidth});
+            currentX += gapWidth;
+            
+            // Skip adding ground segment if we've reached the end
+            if (currentX >= m_worldWidth) break;
+        }
         
-        // Create ground segment
+        // Add ground segment (shorter segments: 40-100px)
+        float segmentWidth = 40.0f + (rand() % 60);
+        if (currentX + segmentWidth > m_worldWidth) {
+            segmentWidth = m_worldWidth - currentX;
+        }
+        
         auto groundSegment = std::make_unique<GameObject>(
             currentX, 550.0f,
             segmentWidth, 50.0f,
-            Color{139, 69, 19, 255}
+            Color{0, 128, 0, 255}
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add vertical obstacles on top of ground segments (30% chance)
-        if (i > 1 && rand() % 10 < 3) {  // 30% chance for vertical obstacle
-            float obstacleHeight = 60.0f + (rand() % 60); // 60-120px tall
+        // Add vertical obstacles (20% chance)
+        if (currentSegment > 1 && rand() % 5 == 0) {
+            float obstacleHeight = 60.0f + (rand() % 60);
             auto obstacle = std::make_unique<GameObject>(
-                currentX + 15.0f, 550.0f - obstacleHeight,
+                currentX + 10.0f, 550.0f - obstacleHeight,
                 20.0f, obstacleHeight,
-                Color{120, 80, 60, 255}  // Darker brown for obstacles
+                Color{150, 75, 0, 255}
             );
             m_gameObjects.push_back(std::move(obstacle));
         }
         
         currentX += segmentWidth;
-        
-        // Add gaps more frequently (60% chance) but keep them jumpable
-        if (i > 0 && currentX < m_worldWidth - 200.0f && rand() % 10 < 6) {
-            float gapWidth = 60.0f + (rand() % 60); // Gap width 60-120 (always crossable)
-            m_groundGaps.push_back({currentX, gapWidth});
-            currentX += gapWidth;
-        }
+        currentSegment++;
     }
     
     // Generate new platforms with VERY FEW obstacles
@@ -665,60 +684,47 @@ void Game::renderUI() {
     
     // Render lives (hearts) in top-left corner
     int lives = m_player->getLives();
-    SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255); // Red hearts
     
-    for (int i = 0; i < lives; i++) {
-        int heartX = 20 + i * 35;  // Slightly closer together
-        int heartY = 25;
-        int size = 20;  // Slightly larger heart
-        
-        // Draw a better heart shape (rotated 180 degrees)
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
-                // Heart shape equation with 180-degree rotation (invert both x and y)
-                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
-                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
-                
-                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
-                float x2 = xv * xv;
-                float y2 = yv * yv;
-                float y3 = y2 * yv;
-                
-                if ((x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3 < 0.0f) {
-                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
-                }
-            }
-        }
-        
-        // Add a subtle outline
-        SDL_SetRenderDrawColor(m_renderer, 200, 0, 0, 255);
-        SDL_Rect heartRect = {heartX - 2, heartY - 5, size + 4, size + 4};
-        SDL_RenderDrawRect(m_renderer, &heartRect);
-        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
-    }
-    
-    // Draw empty hearts for lost lives
-    SDL_SetRenderDrawColor(m_renderer, 100, 0, 0, 100); // Darker red with transparency
-    for (int i = lives; i < 3; i++) {
+    for (int i = 0; i < 3; i++) { // Always draw 3 hearts (full or empty)
         int heartX = 20 + i * 35;
         int heartY = 25;
         int size = 20;
         
-        // Draw outline of heart (rotated 180 degrees)
-        for (int y = 0; y < size; y++) {
-            for (int x = 0; x < size; x++) {
-                // Heart shape equation with 180-degree rotation (invert both x and y)
-                float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
-                float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
-                
-                // Heart equation: (x² + y² - 1)³ - x² * y³ < 0
-                float x2 = xv * xv;
-                float y2 = yv * yv;
-                float y3 = y2 * yv;
-                
-                float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
-                if (val < 0.05f && val > -0.05f) {  // Only draw near the edge
-                    SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+        // Determine heart color based on whether it's a full or empty heart
+        if (i < lives) {
+            // Draw filled heart (red)
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                    float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                    
+                    float x2 = xv * xv;
+                    float y2 = yv * yv;
+                    float y3 = y2 * yv;
+                    
+                    float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
+                    if (val < 0.0f) {
+                        SDL_SetRenderDrawColor(m_renderer, 255, 0, 0, 255);
+                        SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                    }
+                }
+            }
+        } else {
+            // Draw empty heart outline (darker red)
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    float xv = ((size - x - 1) - size/2.0f) / (size/2.5f);
+                    float yv = ((size - y - 1) - size/2.0f) / (size/2.5f);
+                    
+                    float x2 = xv * xv;
+                    float y2 = yv * yv;
+                    float y3 = y2 * yv;
+                    
+                    float val = (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) * (x2 + y2 - 1.0f) - x2 * y3;
+                    if (val < 0.1f && val > -0.1f) {
+                        SDL_SetRenderDrawColor(m_renderer, 150, 0, 0, 255);
+                        SDL_RenderDrawPoint(m_renderer, heartX + x, heartY + y - 3);
+                    }
                 }
             }
         }
