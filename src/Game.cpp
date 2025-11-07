@@ -8,6 +8,63 @@
 #include <memory>
 #include <algorithm>
 #include <cstdlib>  // For rand()
+#include <filesystem>
+#include <vector>
+#include <system_error>
+
+namespace
+{
+    // Resolve an asset path relative to the executable or current working directory.
+    std::string findAssetPath(const std::string& relative)
+    {
+        namespace fs = std::filesystem;
+        const fs::path relativePath(relative);
+        std::vector<fs::path> candidates;
+
+        if (char* base = SDL_GetBasePath()) {
+            fs::path basePath(base);
+            SDL_free(base);
+
+            candidates.emplace_back(basePath / relativePath);
+            candidates.emplace_back(basePath.parent_path() / relativePath);
+            candidates.emplace_back(basePath.parent_path().parent_path() / relativePath);
+            candidates.emplace_back(basePath.parent_path().parent_path().parent_path() / relativePath);
+        }
+
+        candidates.emplace_back(relativePath);
+        candidates.emplace_back(fs::path("..") / relativePath);
+        candidates.emplace_back(fs::path("..") / ".." / relativePath);
+
+        for (const auto& candidate : candidates) {
+            std::error_code ec;
+            if (!candidate.empty() && fs::exists(candidate, ec)) {
+                return candidate.string();
+            }
+        }
+
+        return {};
+    }
+
+    std::vector<std::string> collectFontCandidates()
+    {
+        std::vector<std::string> candidates = {
+            "assets/fonts/arial.ttf",
+            "assets/fonts/Arial.ttf",
+            "assets/fonts/DejaVuSans.ttf"
+        };
+
+#ifdef _WIN32
+        candidates.emplace_back("C:/Windows/Fonts/arial.ttf");
+        candidates.emplace_back("C:/Windows/Fonts/Arial.ttf");
+        candidates.emplace_back("C:/Windows/Fonts/segoeui.ttf");
+#else
+        candidates.emplace_back("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+        candidates.emplace_back("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf");
+#endif
+
+        return candidates;
+    }
+}
 
 Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_worldWidth(2000.0f), m_cameraX(0.0f), m_cameraY(0.0f) {
     // Initialize SDL
@@ -57,15 +114,35 @@ bool Game::initialize() {
     }
     
     // Load a font
-    m_font = TTF_OpenFont("assets/fonts/arial.ttf", 24);
-    if (!m_font) {
-        std::cerr << "Failed to load font! SDL_ttf Error: " << TTF_GetError() << std::endl;
-        // Try a fallback font
-        m_font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24);
-        if (!m_font) {
-            std::cerr << "Failed to load fallback font! SDL_ttf Error: " << TTF_GetError() << std::endl;
-            return false;
+    const auto fontCandidates = collectFontCandidates();
+    for (const auto& candidate : fontCandidates) {
+        std::string resolvedPath;
+        const std::filesystem::path candidatePath(candidate);
+
+        if (candidatePath.is_absolute()) {
+            std::error_code ec;
+            if (!std::filesystem::exists(candidatePath, ec)) {
+                continue;
+            }
+            resolvedPath = candidatePath.string();
+        } else {
+            resolvedPath = findAssetPath(candidate);
+            if (resolvedPath.empty()) {
+                continue;
+            }
         }
+
+        m_font = TTF_OpenFont(resolvedPath.c_str(), 24);
+        if (m_font) {
+            break;
+        }
+
+        std::cerr << "Failed to load font at '" << resolvedPath << "'. SDL_ttf Error: " << TTF_GetError() << std::endl;
+    }
+
+    if (!m_font) {
+        std::cerr << "Unable to locate a usable font. Please ensure a TTF font is available." << std::endl;
+        return false;
     }
 
     // Set initial game state

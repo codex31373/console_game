@@ -1,7 +1,7 @@
 #include <iostream>
 #include "Game.hpp"
 
-int main() {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     try {
         Game game;
         if (!game.initialize()) {
