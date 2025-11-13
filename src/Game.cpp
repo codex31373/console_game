@@ -281,6 +281,9 @@ void Game::createLevel() {
     m_clouds.push_back(std::make_unique<Cloud>(400.0f, 80.0f, 150.0f, 70.0f));
     m_clouds.push_back(std::make_unique<Cloud>(700.0f, 110.0f, 130.0f, 65.0f));
     
+    // Create water at the bottom of the screen - lowered even more
+    m_water = std::make_unique<Water>(0, SCREEN_HEIGHT - 40, m_worldWidth, 160);
+    
     // Sign will be created when game is over
 }
 
@@ -400,6 +403,12 @@ void Game::update(float deltaTime) {
     // Update clouds
     for (auto& cloud : m_clouds) {
         cloud->update(deltaTime);
+    }
+    
+    // Update water animation
+    if (m_water) {
+        m_water->update(deltaTime);
+        m_water->setCameraOffset(m_cameraX, 0);
     }
 
     // Update player first
@@ -623,6 +632,11 @@ void Game::render() {
     // Render clouds in background
     for (const auto& cloud : m_clouds) {
         cloud->render(m_renderer);
+    }
+    
+    // Render water (above clouds but below platforms and player)
+    if (m_water) {
+        m_water->render(m_renderer);
     }
     
     // Render the MACHI sign
