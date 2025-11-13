@@ -10,6 +10,7 @@
 #include "Bird.hpp"
 #include "Sign.hpp"
 #include "Cloud.hpp"
+#include "Water.hpp"
 
 class Game {
 public:
@@ -49,6 +50,7 @@ private:
     std::vector<std::unique_ptr<Bird>> m_birds;
     std::unique_ptr<Sign> m_sign;
     std::vector<std::unique_ptr<Cloud>> m_clouds;
+    std::unique_ptr<Water> m_water;
 
     // World and camera properties
     float m_worldWidth = 2000.0f;
