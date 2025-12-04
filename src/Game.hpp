@@ -11,6 +11,7 @@
 #include "Sign.hpp"
 #include "Cloud.hpp"
 #include "Water.hpp"
+#include "Grass.hpp"
 
 class Game {
 public:
@@ -51,6 +52,7 @@ private:
     std::unique_ptr<Sign> m_sign;
     std::vector<std::unique_ptr<Cloud>> m_clouds;
     std::unique_ptr<Water> m_water;
+    std::vector<std::unique_ptr<Grass>> m_grassPatches;
 
     // World and camera properties
     float m_worldWidth = 2000.0f;

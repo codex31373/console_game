@@ -17,6 +17,9 @@ set(SOURCES
     src/Cloud.cpp
     src/Sign.cpp
     src/Water.cpp
+    src/Stair.cpp
+    src/Collectible.cpp
+    src/Grass.cpp
 )
 
 set(HEADERS
@@ -28,6 +31,9 @@ set(HEADERS
     src/Cloud.hpp
     src/Sign.hpp
     src/Water.hpp
+    src/Stair.hpp
+    src/Collectible.hpp
+    src/Grass.hpp
     src/Common.hpp
 )
 

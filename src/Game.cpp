@@ -192,6 +192,15 @@ void Game::createLevel() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
+        // Add grass patch on top of ground segment (70% chance)
+        if (rand() % 10 < 7) {
+            auto grassPatch = std::make_unique<Grass>(
+                currentX, groundY - 20.0f,
+                segmentWidth, 25.0f
+            );
+            m_grassPatches.push_back(std::move(grassPatch));
+        }
+        
         // Add vertical obstacles (20% chance)
         if (currentSegment > 1 && rand() % 5 == 0) {
             float obstacleHeight = 60.0f + (rand() % 60);
@@ -215,6 +224,13 @@ void Game::createLevel() {
             Color{0, 128, 0, 255}
         );
         m_gameObjects.push_back(std::move(groundSegment));
+        
+        // Add grass patch on remaining ground
+        auto grassPatch = std::make_unique<Grass>(
+            currentX, groundY - 20.0f,
+            worldEnd - currentX, 25.0f
+        );
+        m_grassPatches.push_back(std::move(grassPatch));
     }
 
     // Create a series of platforms at different heights (FEWER platforms)
@@ -542,9 +558,34 @@ void Game::update(float deltaTime) {
     }
     m_player->setCameraOffset(m_cameraX, 0);
     
+    // Update grass patches
+    for (auto& grass : m_grassPatches) {
+        grass->update(deltaTime);
+        grass->setCameraOffset(m_cameraX, 0);
+    }
+    
     // Update other game objects
     for (auto& obj : m_gameObjects) {
         obj->update(deltaTime);
+    }
+    
+    // Check if player is grounded and notify grass patches
+    if (m_player->isGrounded()) {
+        float playerX = m_player->getX() + m_player->getWidth() / 2.0f;
+        float playerY = m_player->getY() + m_player->getHeight();
+        
+        // Notify nearby grass patches of player step
+        for (auto& grass : m_grassPatches) {
+            float grassX = grass->getX();
+            float grassWidth = grass->getWidth();
+            
+            // Check if player is near this grass patch (within 100 pixels horizontally)
+            if (std::abs(playerX - (grassX + grassWidth / 2.0f)) < 100.0f) {
+                // Calculate step force based on player velocity
+                float stepForce = std::min(1.0f, std::abs(m_player->getVelX()) / 200.0f);
+                grass->reactToStep(playerX, playerY, stepForce);
+            }
+        }
     }
     
     // Check bird collisions with player
@@ -583,6 +624,15 @@ void Game::generateMorePlatformsIfNeeded() {
             Color{0, 128, 0, 255}
         );
         m_gameObjects.push_back(std::move(groundSegment));
+        
+        // Add grass patch on top of ground segment (70% chance)
+        if (rand() % 10 < 7) {
+            auto grassPatch = std::make_unique<Grass>(
+                currentX, 530.0f,
+                segmentWidth, 25.0f
+            );
+            m_grassPatches.push_back(std::move(grassPatch));
+        }
         
         // Add vertical obstacles (20% chance)
         if (currentSegment > 1 && rand() % 5 == 0) {
@@ -637,6 +687,11 @@ void Game::render() {
     // Render water (above clouds but below platforms and player)
     if (m_water) {
         m_water->render(m_renderer);
+    }
+    
+    // Render grass patches (above water but below platforms)
+    for (const auto& grass : m_grassPatches) {
+        grass->render(m_renderer);
     }
     
     // Render the MACHI sign
@@ -787,6 +842,7 @@ void Game::restartGame() {
     m_cameraX = 0.0f;
     m_gameObjects.clear();
     m_groundGaps.clear();
+    m_grassPatches.clear();
     
     // Recreate level
     createLevel();
