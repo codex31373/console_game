@@ -192,14 +192,12 @@ void Game::createLevel() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add grass patch on top of ground segment (70% chance)
-        if (rand() % 10 < 7) {
-            auto grassPatch = std::make_unique<Grass>(
-                currentX, groundY - 20.0f,
-                segmentWidth, 25.0f
-            );
-            m_grassPatches.push_back(std::move(grassPatch));
-        }
+        // Add grass patch on top of ground segment
+        auto grassPatch = std::make_unique<Grass>(
+            currentX, groundY - 20.0f,
+            segmentWidth, 25.0f
+        );
+        m_grassPatches.push_back(std::move(grassPatch));
         
         // Add vertical obstacles (20% chance)
         if (currentSegment > 1 && rand() % 5 == 0) {
@@ -625,14 +623,12 @@ void Game::generateMorePlatformsIfNeeded() {
         );
         m_gameObjects.push_back(std::move(groundSegment));
         
-        // Add grass patch on top of ground segment (70% chance)
-        if (rand() % 10 < 7) {
-            auto grassPatch = std::make_unique<Grass>(
-                currentX, 530.0f,
-                segmentWidth, 25.0f
-            );
-            m_grassPatches.push_back(std::move(grassPatch));
-        }
+        // Add grass patch on top of ground segment
+        auto grassPatch = std::make_unique<Grass>(
+            currentX, 530.0f,
+            segmentWidth, 25.0f
+        );
+        m_grassPatches.push_back(std::move(grassPatch));
         
         // Add vertical obstacles (20% chance)
         if (currentSegment > 1 && rand() % 5 == 0) {
