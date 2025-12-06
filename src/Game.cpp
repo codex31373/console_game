@@ -5,6 +5,8 @@
 #include "Bird.hpp"
 #include "Cloud.hpp"
 #include "Common.hpp"
+#include "Stair.hpp"
+#include "Collectible.hpp"
 #include <iostream>
 #include <memory>
 #include <algorithm>
@@ -515,18 +517,20 @@ void Game::update(float deltaTime) {
     float playerRight = m_player->getX() + m_player->getWidth();
     
     for (const auto& obj : m_gameObjects) {
-        // Check collision with platforms and ground segments
         float objectTop = obj->getY();
         float objectLeft = obj->getX();
         float objectRight = obj->getX() + obj->getWidth();
         float objectBottom = obj->getY() + obj->getHeight();
-        
+
+        bool isPlatform = (dynamic_cast<Platform*>(obj.get()) != nullptr);
+        bool isStair = (dynamic_cast<Stair*>(obj.get()) != nullptr);
+
         // Check if this is a ground segment (wide, flat object near the bottom of the screen)
         bool isGroundSegment = (objectTop >= 540.0f && objectTop <= 560.0f && 
                               objectBottom > 550.0f && obj->getWidth() >= 20.0f);
-        
-        // Check if player is standing on or landing on platform/ground
-        if ((dynamic_cast<Platform*>(obj.get()) || isGroundSegment) &&
+
+        // Check if player is standing on or landing on platform/ground (including stairs)
+        if ((isPlatform || isStair || isGroundSegment) &&
             playerBottom >= objectTop - 5.0f && 
             playerBottom <= objectTop + 15.0f &&
             playerRight > objectLeft + 2.0f && 
@@ -535,53 +539,51 @@ void Game::update(float deltaTime) {
             // Snap player to top of platform/ground
             m_player->setPosition(m_player->getX(), objectTop - m_player->getHeight());
             m_player->setGrounded(true);
-            // Reset vertical velocity to prevent falling through
             if (m_player->getVelY() > 0.0f) {
                 m_player->setVelY(0.0f);
             }
             onGround = true;
             break;
         }
-        // Check collision with vertical obstacles (walls)
-        else if (auto wall = dynamic_cast<GameObject*>(obj.get())) {
-            // Check if this is a vertical obstacle (taller than wide and not too wide)
-            if (wall->getHeight() > wall->getWidth() * 1.5f && wall->getWidth() < 50.0f) {
-                float wallLeft = wall->getX();
-                float wallRight = wall->getX() + wall->getWidth();
-                float wallTop = wall->getY();
-                float wallBottom = wall->getY() + wall->getHeight();
-                
-                // Calculate overlap on both axes
-                float overlapX = std::min(playerRight, wallRight) - std::max(playerLeft, wallLeft);
-                float overlapY = std::min(playerBottom, wallBottom) - std::max(m_player->getY(), wallTop);
-                
-                // Only process collision if there's actual overlap
-                if (overlapX > 0 && overlapY > 0) {
-                    // Determine the side of collision with a small bias
-                    if (overlapX < overlapY) {
-                        // Horizontal collision (from left or right)
-                        if (m_player->getX() < wallLeft) {
-                            // Collision from left
-                            m_player->setPosition(wallLeft - m_player->getWidth() - 0.1f, m_player->getY());
-                            m_player->setVelX(0);
-                        } else {
-                            // Collision from right
-                            m_player->setPosition(wallRight + 0.1f, m_player->getY());
-                            m_player->setVelX(0);
-                        }
-                    } else {
-                        // Vertical collision (from top or bottom)
-                        if (m_player->getY() < wallTop) {
-                            // Collision from top
-                            m_player->setPosition(m_player->getX(), wallTop - m_player->getHeight() - 0.1f);
-                            m_player->setGrounded(true);
-                            m_player->setVelY(0);
-                            onGround = true;
-                        } else {
-                            // Collision from bottom (hitting head)
-                            m_player->setPosition(m_player->getX(), wallBottom + 0.1f);
-                            m_player->setVelY(0);
-                        }
+
+        // Treat remaining solid game objects as blocking walls, but skip decorative/non-solid types
+        if (isPlatform || isStair || isGroundSegment) {
+            continue;
+        }
+        if (dynamic_cast<Grass*>(obj.get()) ||
+            dynamic_cast<Water*>(obj.get()) ||
+            dynamic_cast<Cloud*>(obj.get()) ||
+            dynamic_cast<Sign*>(obj.get()) ||
+            dynamic_cast<Bird*>(obj.get()) ||
+            dynamic_cast<Collectible*>(obj.get())) {
+            continue;
+        }
+
+        float overlapX = std::min(playerRight, objectRight) - std::max(playerLeft, objectLeft);
+        float overlapY = std::min(playerBottom, objectBottom) - std::max(m_player->getY(), objectTop);
+
+        if (overlapX > 0.0f && overlapY > 0.0f) {
+            if (overlapX < overlapY) {
+                // Horizontal collision (from left or right)
+                if (m_player->getX() < objectLeft) {
+                    m_player->setPosition(objectLeft - m_player->getWidth() - 0.1f, m_player->getY());
+                } else {
+                    m_player->setPosition(objectRight + 0.1f, m_player->getY());
+                }
+                m_player->setVelX(0.0f);
+            } else {
+                // Vertical collision (from top or bottom)
+                if (m_player->getY() < objectTop) {
+                    m_player->setPosition(m_player->getX(), objectTop - m_player->getHeight() - 0.1f);
+                    m_player->setGrounded(true);
+                    if (m_player->getVelY() > 0.0f) {
+                        m_player->setVelY(0.0f);
+                    }
+                    onGround = true;
+                } else {
+                    m_player->setPosition(m_player->getX(), objectBottom + 0.1f);
+                    if (m_player->getVelY() < 0.0f) {
+                        m_player->setVelY(0.0f);
                     }
                 }
             }
