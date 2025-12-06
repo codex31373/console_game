@@ -36,21 +36,21 @@ void Bird::render(SDL_Renderer* renderer) const {
     
     // Body
     SDL_Rect body = {
-        screenX + 10, screenY + 10,
-        static_cast<int>(m_width - 20), static_cast<int>(m_height - 10)
+        screenX + 8, screenY + 10,
+        static_cast<int>(m_width - 16), static_cast<int>(m_height - 14)
     };
     SDL_RenderFillRect(renderer, &body);
     
     // Head
     SDL_Rect head = {
-        screenX + 5, screenY + 5,
-        15, 15
+        screenX + 4, screenY + 6,
+        14, 14
     };
     SDL_RenderFillRect(renderer, &head);
     
     // Beak (yellow/orange)
-    SDL_SetRenderDrawColor(renderer, 255, 180, 0, 255);
-    SDL_Rect beak = { screenX + 2, screenY + 10, 8, 5 };
+    SDL_SetRenderDrawColor(renderer, 255, 200, 80, 255);
+    SDL_Rect beak = { screenX + 0, screenY + 11, 8, 4 };
     SDL_RenderFillRect(renderer, &beak);
     
     // Eye (white with black pupil)
@@ -62,18 +62,14 @@ void Bird::render(SDL_Renderer* renderer) const {
     SDL_RenderFillRect(renderer, &pupil);
     
     // Wings (animated)
-    SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+    SDL_SetRenderDrawColor(renderer, 70, 70, 70, 255);
+    SDL_Rect wing;
     if (m_wingUp) {
         // Wings up
-        SDL_RenderDrawLine(renderer, screenX + 15, screenY + 15, screenX + 5, screenY + 5);
-        SDL_RenderDrawLine(renderer, screenX + 15, screenY + 15, screenX + 25, screenY + 5);
-        SDL_RenderDrawLine(renderer, screenX + 5, screenY + 5, screenX + 0, screenY + 8);
-        SDL_RenderDrawLine(renderer, screenX + 25, screenY + 5, screenX + 30, screenY + 8);
+        wing = { screenX + 18, screenY + 6, 16, 10 };
     } else {
         // Wings down
-        SDL_RenderDrawLine(renderer, screenX + 15, screenY + 15, screenX + 5, screenY + 25);
-        SDL_RenderDrawLine(renderer, screenX + 15, screenY + 15, screenX + 25, screenY + 25);
-        SDL_RenderDrawLine(renderer, screenX + 5, screenY + 25, screenX + 0, screenY + 22);
-        SDL_RenderDrawLine(renderer, screenX + 25, screenY + 25, screenX + 30, screenY + 22);
+        wing = { screenX + 18, screenY + 14, 16, 10 };
     }
+    SDL_RenderFillRect(renderer, &wing);
 }

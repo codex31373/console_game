@@ -65,6 +65,7 @@ namespace
 
         return candidates;
     }
+    constexpr float HIT_FLASH_DURATION = 0.3f;
 }
 
 Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_worldWidth(2000.0f), m_cameraX(0.0f), m_cameraY(0.0f) {
@@ -72,6 +73,69 @@ Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_wor
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
         return;
+    }
+}
+
+void Game::renderParallaxBackground() {
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+
+    int step = 4;
+
+    SDL_SetRenderDrawColor(m_renderer, 160, 190, 230, 255);
+    int baseY1 = 420;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.2f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.003f) * 25.0f;
+        int y = baseY1 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+
+    SDL_SetRenderDrawColor(m_renderer, 130, 170, 210, 255);
+    int baseY2 = 450;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.35f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.0045f) * 30.0f;
+        int y = baseY2 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+
+    SDL_SetRenderDrawColor(m_renderer, 110, 160, 200, 255);
+    int baseY3 = 480;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.5f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.006f) * 35.0f;
+        int y = baseY3 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+}
+
+void Game::renderSun() {
+    int cx = SCREEN_WIDTH - 140;
+    int cy = 110;
+    int radius = 35;
+
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(m_renderer, 255, 240, 200, 255);
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx * dx + dy * dy <= radius * radius) {
+                SDL_RenderDrawPoint(m_renderer, cx + dx, cy + dy);
+            }
+        }
+    }
+
+    int rayCount = 16;
+    float baseLen = 60.0f;
+    float amp = 10.0f;
+    float wobble = std::sin(m_sunTime * 0.6f) * 0.18f;
+
+    SDL_SetRenderDrawColor(m_renderer, 255, 245, 220, 120);
+    for (int i = 0; i < rayCount; ++i) {
+        float angle = (static_cast<float>(i) / static_cast<float>(rayCount)) * 6.2831853f + wobble;
+        float len = baseLen + std::sin(m_sunTime * 1.8f + i * 0.5f) * amp;
+        int ex = cx + static_cast<int>(std::cos(angle) * len);
+        int ey = cy + static_cast<int>(std::sin(angle) * len);
+        SDL_RenderDrawLine(m_renderer, cx, cy, ex, ey);
     }
 }
 
@@ -145,6 +209,9 @@ bool Game::initialize() {
         std::cerr << "Unable to locate a usable font. Please ensure a TTF font is available." << std::endl;
         return false;
     }
+
+    m_effectsEnabled = false;
+    m_lightsEnabled = false;
 
     // Set initial game state
     m_isRunning = true;
@@ -386,6 +453,14 @@ bool Game::handleInput(const SDL_Event& event) {
 }
 
 void Game::update(float deltaTime) {
+    m_sunTime += deltaTime;
+    if (m_hitFlashTimer > 0.0f) {
+        m_hitFlashTimer -= deltaTime;
+        if (m_hitFlashTimer < 0.0f) {
+            m_hitFlashTimer = 0.0f;
+        }
+    }
+    
     if (!m_player) return;
     
     // Check for game over
@@ -675,6 +750,9 @@ void Game::render() {
     SDL_SetRenderDrawColor(m_renderer, 135, 206, 250, 255); // Light sky blue
     SDL_RenderClear(m_renderer);
 
+    // Parallax background currently disabled; keep renderSun for sky accent
+    renderSun();
+
     // Render clouds in background
     for (const auto& cloud : m_clouds) {
         cloud->render(m_renderer);
@@ -718,9 +796,39 @@ void Game::render() {
             m_player->render(m_renderer);
         }
     }
-    
+
     // Render UI (lives, game over, etc.)
     renderUI();
+
+    if (m_hitFlashTimer > 0.0f && m_player) {
+        float t = m_hitFlashTimer / HIT_FLASH_DURATION;
+        if (t > 1.0f) {
+            t = 1.0f;
+        }
+        Uint8 alpha = static_cast<Uint8>(150.0f * t);
+
+        int screenX = static_cast<int>(m_player->getX() - m_cameraX);
+        int screenY = static_cast<int>(m_player->getY());
+        int centerX = screenX + static_cast<int>(m_player->getWidth() / 2.0f);
+        int centerY = screenY + static_cast<int>(m_player->getHeight() / 2.0f);
+
+        int radius = 90;
+        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_ADD);
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                int dist2 = dx * dx + dy * dy;
+                if (dist2 <= radius * radius) {
+                    float dist = std::sqrt(static_cast<float>(dist2)) / static_cast<float>(radius);
+                    float falloff = 1.0f - dist;
+                    if (falloff < 0.0f) falloff = 0.0f;
+                    Uint8 localAlpha = static_cast<Uint8>(alpha * falloff);
+                    SDL_SetRenderDrawColor(m_renderer, 255, 240, 200, localAlpha);
+                    SDL_RenderDrawPoint(m_renderer, centerX + dx, centerY + dy);
+                }
+            }
+        }
+        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+    }
 
     // Update screen
     SDL_RenderPresent(m_renderer);
@@ -792,6 +900,7 @@ void Game::checkBirdCollisions() {
             // Lose a life
             m_player->loseLife();
             m_invulnerabilityTimer = 1.5f; // 1.5 seconds invulnerability
+            m_hitFlashTimer = HIT_FLASH_DURATION;
             
             std::cout << "Bird collision! Lives remaining: " << m_player->getLives() << std::endl;
             

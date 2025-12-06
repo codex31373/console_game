@@ -12,6 +12,8 @@
 #include "Cloud.hpp"
 #include "Water.hpp"
 #include "Grass.hpp"
+#include "Effects.hpp"
+#include "LightManager.hpp"
 
 class Game {
 public:
@@ -30,6 +32,9 @@ private:
     bool handleInput(const SDL_Event& event);
     void update(float deltaTime);
     void render();
+    
+    void renderParallaxBackground();
+    void renderSun();
     
     void createLevel();
     void generateMorePlatformsIfNeeded();
@@ -73,6 +78,14 @@ private:
     // Game state
     bool m_gameOver = false;
     float m_invulnerabilityTimer = 0.0f;
+    float m_sunTime = 0.0f;
+    float m_hitFlashTimer = 0.0f;
+    
+    Effects m_effects;
+    LightManager m_lightManager;
+    bool m_effectsEnabled = false;
+    bool m_lightsEnabled = false;
+    int m_playerLightIndex = -1;
 };
 
 #endif // GAME_HPP

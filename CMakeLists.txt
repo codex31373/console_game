@@ -20,6 +20,8 @@ set(SOURCES
     src/Stair.cpp
     src/Collectible.cpp
     src/Grass.cpp
+    src/Effects.cpp
+    src/LightManager.cpp
 )
 
 set(HEADERS
@@ -34,6 +36,8 @@ set(HEADERS
     src/Stair.hpp
     src/Collectible.hpp
     src/Grass.hpp
+    src/Effects.hpp
+    src/LightManager.hpp
     src/Common.hpp
 )
 
