@@ -5,6 +5,8 @@
 #include "Bird.hpp"
 #include "Cloud.hpp"
 #include "Common.hpp"
+#include "Stair.hpp"
+#include "Collectible.hpp"
 #include <iostream>
 #include <memory>
 #include <algorithm>
@@ -65,6 +67,7 @@ namespace
 
         return candidates;
     }
+    constexpr float HIT_FLASH_DURATION = 0.3f;
 }
 
 Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_worldWidth(2000.0f), m_cameraX(0.0f), m_cameraY(0.0f) {
@@ -72,6 +75,69 @@ Game::Game() : m_window(nullptr), m_renderer(nullptr), m_isRunning(false), m_wor
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
         return;
+    }
+}
+
+void Game::renderParallaxBackground() {
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+
+    int step = 4;
+
+    SDL_SetRenderDrawColor(m_renderer, 160, 190, 230, 255);
+    int baseY1 = 420;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.2f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.003f) * 25.0f;
+        int y = baseY1 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+
+    SDL_SetRenderDrawColor(m_renderer, 130, 170, 210, 255);
+    int baseY2 = 450;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.35f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.0045f) * 30.0f;
+        int y = baseY2 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+
+    SDL_SetRenderDrawColor(m_renderer, 110, 160, 200, 255);
+    int baseY3 = 480;
+    for (int x = 0; x < SCREEN_WIDTH; x += step) {
+        float worldX = m_cameraX * 0.5f + static_cast<float>(x);
+        float offset = std::sin(worldX * 0.006f) * 35.0f;
+        int y = baseY3 + static_cast<int>(offset);
+        SDL_RenderDrawLine(m_renderer, x, SCREEN_HEIGHT, x, y);
+    }
+}
+
+void Game::renderSun() {
+    int cx = SCREEN_WIDTH - 140;
+    int cy = 110;
+    int radius = 35;
+
+    SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(m_renderer, 255, 240, 200, 255);
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx * dx + dy * dy <= radius * radius) {
+                SDL_RenderDrawPoint(m_renderer, cx + dx, cy + dy);
+            }
+        }
+    }
+
+    int rayCount = 16;
+    float baseLen = 60.0f;
+    float amp = 10.0f;
+    float wobble = std::sin(m_sunTime * 0.6f) * 0.18f;
+
+    SDL_SetRenderDrawColor(m_renderer, 255, 245, 220, 120);
+    for (int i = 0; i < rayCount; ++i) {
+        float angle = (static_cast<float>(i) / static_cast<float>(rayCount)) * 6.2831853f + wobble;
+        float len = baseLen + std::sin(m_sunTime * 1.8f + i * 0.5f) * amp;
+        int ex = cx + static_cast<int>(std::cos(angle) * len);
+        int ey = cy + static_cast<int>(std::sin(angle) * len);
+        SDL_RenderDrawLine(m_renderer, cx, cy, ex, ey);
     }
 }
 
@@ -145,6 +211,9 @@ bool Game::initialize() {
         std::cerr << "Unable to locate a usable font. Please ensure a TTF font is available." << std::endl;
         return false;
     }
+
+    m_effectsEnabled = false;
+    m_lightsEnabled = false;
 
     // Set initial game state
     m_isRunning = true;
@@ -386,6 +455,14 @@ bool Game::handleInput(const SDL_Event& event) {
 }
 
 void Game::update(float deltaTime) {
+    m_sunTime += deltaTime;
+    if (m_hitFlashTimer > 0.0f) {
+        m_hitFlashTimer -= deltaTime;
+        if (m_hitFlashTimer < 0.0f) {
+            m_hitFlashTimer = 0.0f;
+        }
+    }
+    
     if (!m_player) return;
     
     // Check for game over
@@ -440,18 +517,20 @@ void Game::update(float deltaTime) {
     float playerRight = m_player->getX() + m_player->getWidth();
     
     for (const auto& obj : m_gameObjects) {
-        // Check collision with platforms and ground segments
         float objectTop = obj->getY();
         float objectLeft = obj->getX();
         float objectRight = obj->getX() + obj->getWidth();
         float objectBottom = obj->getY() + obj->getHeight();
-        
+
+        bool isPlatform = (dynamic_cast<Platform*>(obj.get()) != nullptr);
+        bool isStair = (dynamic_cast<Stair*>(obj.get()) != nullptr);
+
         // Check if this is a ground segment (wide, flat object near the bottom of the screen)
         bool isGroundSegment = (objectTop >= 540.0f && objectTop <= 560.0f && 
                               objectBottom > 550.0f && obj->getWidth() >= 20.0f);
-        
-        // Check if player is standing on or landing on platform/ground
-        if ((dynamic_cast<Platform*>(obj.get()) || isGroundSegment) &&
+
+        // Check if player is standing on or landing on platform/ground (including stairs)
+        if ((isPlatform || isStair || isGroundSegment) &&
             playerBottom >= objectTop - 5.0f && 
             playerBottom <= objectTop + 15.0f &&
             playerRight > objectLeft + 2.0f && 
@@ -460,53 +539,51 @@ void Game::update(float deltaTime) {
             // Snap player to top of platform/ground
             m_player->setPosition(m_player->getX(), objectTop - m_player->getHeight());
             m_player->setGrounded(true);
-            // Reset vertical velocity to prevent falling through
             if (m_player->getVelY() > 0.0f) {
                 m_player->setVelY(0.0f);
             }
             onGround = true;
             break;
         }
-        // Check collision with vertical obstacles (walls)
-        else if (auto wall = dynamic_cast<GameObject*>(obj.get())) {
-            // Check if this is a vertical obstacle (taller than wide and not too wide)
-            if (wall->getHeight() > wall->getWidth() * 1.5f && wall->getWidth() < 50.0f) {
-                float wallLeft = wall->getX();
-                float wallRight = wall->getX() + wall->getWidth();
-                float wallTop = wall->getY();
-                float wallBottom = wall->getY() + wall->getHeight();
-                
-                // Calculate overlap on both axes
-                float overlapX = std::min(playerRight, wallRight) - std::max(playerLeft, wallLeft);
-                float overlapY = std::min(playerBottom, wallBottom) - std::max(m_player->getY(), wallTop);
-                
-                // Only process collision if there's actual overlap
-                if (overlapX > 0 && overlapY > 0) {
-                    // Determine the side of collision with a small bias
-                    if (overlapX < overlapY) {
-                        // Horizontal collision (from left or right)
-                        if (m_player->getX() < wallLeft) {
-                            // Collision from left
-                            m_player->setPosition(wallLeft - m_player->getWidth() - 0.1f, m_player->getY());
-                            m_player->setVelX(0);
-                        } else {
-                            // Collision from right
-                            m_player->setPosition(wallRight + 0.1f, m_player->getY());
-                            m_player->setVelX(0);
-                        }
-                    } else {
-                        // Vertical collision (from top or bottom)
-                        if (m_player->getY() < wallTop) {
-                            // Collision from top
-                            m_player->setPosition(m_player->getX(), wallTop - m_player->getHeight() - 0.1f);
-                            m_player->setGrounded(true);
-                            m_player->setVelY(0);
-                            onGround = true;
-                        } else {
-                            // Collision from bottom (hitting head)
-                            m_player->setPosition(m_player->getX(), wallBottom + 0.1f);
-                            m_player->setVelY(0);
-                        }
+
+        // Treat remaining solid game objects as blocking walls, but skip decorative/non-solid types
+        if (isPlatform || isStair || isGroundSegment) {
+            continue;
+        }
+        if (dynamic_cast<Grass*>(obj.get()) ||
+            dynamic_cast<Water*>(obj.get()) ||
+            dynamic_cast<Cloud*>(obj.get()) ||
+            dynamic_cast<Sign*>(obj.get()) ||
+            dynamic_cast<Bird*>(obj.get()) ||
+            dynamic_cast<Collectible*>(obj.get())) {
+            continue;
+        }
+
+        float overlapX = std::min(playerRight, objectRight) - std::max(playerLeft, objectLeft);
+        float overlapY = std::min(playerBottom, objectBottom) - std::max(m_player->getY(), objectTop);
+
+        if (overlapX > 0.0f && overlapY > 0.0f) {
+            if (overlapX < overlapY) {
+                // Horizontal collision (from left or right)
+                if (m_player->getX() < objectLeft) {
+                    m_player->setPosition(objectLeft - m_player->getWidth() - 0.1f, m_player->getY());
+                } else {
+                    m_player->setPosition(objectRight + 0.1f, m_player->getY());
+                }
+                m_player->setVelX(0.0f);
+            } else {
+                // Vertical collision (from top or bottom)
+                if (m_player->getY() < objectTop) {
+                    m_player->setPosition(m_player->getX(), objectTop - m_player->getHeight() - 0.1f);
+                    m_player->setGrounded(true);
+                    if (m_player->getVelY() > 0.0f) {
+                        m_player->setVelY(0.0f);
+                    }
+                    onGround = true;
+                } else {
+                    m_player->setPosition(m_player->getX(), objectBottom + 0.1f);
+                    if (m_player->getVelY() < 0.0f) {
+                        m_player->setVelY(0.0f);
                     }
                 }
             }
@@ -675,6 +752,9 @@ void Game::render() {
     SDL_SetRenderDrawColor(m_renderer, 135, 206, 250, 255); // Light sky blue
     SDL_RenderClear(m_renderer);
 
+    // Parallax background currently disabled; keep renderSun for sky accent
+    renderSun();
+
     // Render clouds in background
     for (const auto& cloud : m_clouds) {
         cloud->render(m_renderer);
@@ -718,9 +798,39 @@ void Game::render() {
             m_player->render(m_renderer);
         }
     }
-    
+
     // Render UI (lives, game over, etc.)
     renderUI();
+
+    if (m_hitFlashTimer > 0.0f && m_player) {
+        float t = m_hitFlashTimer / HIT_FLASH_DURATION;
+        if (t > 1.0f) {
+            t = 1.0f;
+        }
+        Uint8 alpha = static_cast<Uint8>(150.0f * t);
+
+        int screenX = static_cast<int>(m_player->getX() - m_cameraX);
+        int screenY = static_cast<int>(m_player->getY());
+        int centerX = screenX + static_cast<int>(m_player->getWidth() / 2.0f);
+        int centerY = screenY + static_cast<int>(m_player->getHeight() / 2.0f);
+
+        int radius = 90;
+        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_ADD);
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                int dist2 = dx * dx + dy * dy;
+                if (dist2 <= radius * radius) {
+                    float dist = std::sqrt(static_cast<float>(dist2)) / static_cast<float>(radius);
+                    float falloff = 1.0f - dist;
+                    if (falloff < 0.0f) falloff = 0.0f;
+                    Uint8 localAlpha = static_cast<Uint8>(alpha * falloff);
+                    SDL_SetRenderDrawColor(m_renderer, 255, 240, 200, localAlpha);
+                    SDL_RenderDrawPoint(m_renderer, centerX + dx, centerY + dy);
+                }
+            }
+        }
+        SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND);
+    }
 
     // Update screen
     SDL_RenderPresent(m_renderer);
@@ -792,6 +902,7 @@ void Game::checkBirdCollisions() {
             // Lose a life
             m_player->loseLife();
             m_invulnerabilityTimer = 1.5f; // 1.5 seconds invulnerability
+            m_hitFlashTimer = HIT_FLASH_DURATION;
             
             std::cout << "Bird collision! Lives remaining: " << m_player->getLives() << std::endl;
             

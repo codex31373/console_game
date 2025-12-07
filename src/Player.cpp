@@ -98,8 +98,21 @@ void Player::render(SDL_Renderer* renderer) const {
         static_cast<int>(m_height - 30)
     };
     SDL_RenderFillRect(renderer, &bodyRect);
+
+    SDL_SetRenderDrawColor(renderer, static_cast<Uint8>(m_color.r + 20 > 255 ? 255 : m_color.r + 20),
+                           static_cast<Uint8>(m_color.g + 20 > 255 ? 255 : m_color.g + 20),
+                           m_color.b,
+                           m_color.a);
+    SDL_Rect bellyRect = {
+        bodyRect.x + 4,
+        bodyRect.y + 4,
+        bodyRect.w - 8,
+        bodyRect.h - 8
+    };
+    SDL_RenderFillRect(renderer, &bellyRect);
     
     // Draw head (circular)
+    SDL_SetRenderDrawColor(renderer, m_color.r, m_color.g, m_color.b, m_color.a);
     SDL_Rect headRect = {
         screenX + 6,
         screenY + 5 + bodyOffsetY,
@@ -130,15 +143,21 @@ void Player::render(SDL_Renderer* renderer) const {
     }
     
     // Draw eyes
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     int eyeY = screenY + 13 + bodyOffsetY;
     int leftEyeX = m_facingRight ? screenX + 13 : screenX + 11;
     int rightEyeX = m_facingRight ? screenX + 23 : screenX + 21;
-    
-    SDL_Rect leftEye = {leftEyeX, eyeY, 5, 5};
-    SDL_Rect rightEye = {rightEyeX, eyeY, 5, 5};
-    SDL_RenderFillRect(renderer, &leftEye);
-    SDL_RenderFillRect(renderer, &rightEye);
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_Rect leftEyeWhite = {leftEyeX, eyeY, 5, 5};
+    SDL_Rect rightEyeWhite = {rightEyeX, eyeY, 5, 5};
+    SDL_RenderFillRect(renderer, &leftEyeWhite);
+    SDL_RenderFillRect(renderer, &rightEyeWhite);
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_Rect leftPupil = {leftEyeX + 2, eyeY + 1, 2, 3};
+    SDL_Rect rightPupil = {rightEyeX + 1, eyeY + 1, 2, 3};
+    SDL_RenderFillRect(renderer, &leftPupil);
+    SDL_RenderFillRect(renderer, &rightPupil);
     
     // Draw nose
     SDL_SetRenderDrawColor(renderer, 255, 182, 193, 255);
@@ -155,35 +174,43 @@ void Player::render(SDL_Renderer* renderer) const {
     
     // Draw TWO legs at the bottom (centered)
     SDL_SetRenderDrawColor(renderer, m_color.r - 40, m_color.g - 40, m_color.b - 10, m_color.a);
+    int legWidth = 6;
+    int legHeight = 14;
+    int legBaseY = screenY + static_cast<int>(m_height) - 18 + bodyOffsetY;
     int leftLegX = screenX + 14;
     int rightLegX = screenX + 22;
-    
-    // Each leg is 6 pixels wide
-    for (int i = 0; i < 6; i++) {
-        // Left leg
-        SDL_RenderDrawLine(renderer,
-            leftLegX + i, screenY + static_cast<int>(m_height) - 18 + bodyOffsetY,
-            leftLegX + i + static_cast<int>(leftLegOffset / 3.0f), 
-            screenY + static_cast<int>(m_height) + static_cast<int>(leftLegOffset) - 3);
-        // Right leg
-        SDL_RenderDrawLine(renderer,
-            rightLegX + i, screenY + static_cast<int>(m_height) - 18 + bodyOffsetY,
-            rightLegX + i + static_cast<int>(rightLegOffset / 3.0f), 
-            screenY + static_cast<int>(m_height) + static_cast<int>(rightLegOffset) - 3);
-    }
-    
+
+    SDL_Rect leftLeg = {
+        leftLegX,
+        legBaseY + static_cast<int>(leftLegOffset * 0.2f),
+        legWidth,
+        legHeight
+    };
+    SDL_Rect rightLeg = {
+        rightLegX,
+        legBaseY + static_cast<int>(rightLegOffset * 0.2f),
+        legWidth,
+        legHeight
+    };
+    SDL_RenderFillRect(renderer, &leftLeg);
+    SDL_RenderFillRect(renderer, &rightLeg);
+
     // Draw paw pads at the end of legs
     SDL_SetRenderDrawColor(renderer, 255, 192, 203, 255); // Pink
-    for (int dx = -3; dx <= 3; dx++) {
-        for (int dy = -2; dy <= 2; dy++) {
-            SDL_RenderDrawPoint(renderer, 
-                leftLegX + 3 + static_cast<int>(leftLegOffset / 3.0f) + dx, 
-                screenY + static_cast<int>(m_height) + static_cast<int>(leftLegOffset) - 3 + dy);
-            SDL_RenderDrawPoint(renderer,
-                rightLegX + 3 + static_cast<int>(rightLegOffset / 3.0f) + dx,
-                screenY + static_cast<int>(m_height) + static_cast<int>(rightLegOffset) - 3 + dy);
-        }
-    }
+    SDL_Rect leftPaw = {
+        leftLeg.x,
+        leftLeg.y + leftLeg.h - 3,
+        leftLeg.w,
+        3
+    };
+    SDL_Rect rightPaw = {
+        rightLeg.x,
+        rightLeg.y + rightLeg.h - 3,
+        rightLeg.w,
+        3
+    };
+    SDL_RenderFillRect(renderer, &leftPaw);
+    SDL_RenderFillRect(renderer, &rightPaw);
     
     // Arms removed - they looked like extra feet
     
